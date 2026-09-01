@@ -134,3 +134,9 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# 디자인 원본, 로컬 문서
+design-brief/
+desgin-codebase/
+HANDOFF.md
+.claude/
