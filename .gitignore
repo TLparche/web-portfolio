@@ -140,3 +140,10 @@ design-brief/
 desgin-codebase/
 HANDOFF.md
 .claude/
+
+# 배경 파이프라인 로컬 산출물
+background/.venv/
+background/input/
+background/work/
+__pycache__/
+*.pyc

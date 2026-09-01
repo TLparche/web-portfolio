@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import HologramBackground from './background/HologramBackground';
+
 const CH_NAMES = [
     'ABOUT', 'INTEREST', 'PROJECTS', 'EXPERIENCE', 'CERTIFICATIONS', 'EDUCATION',
     'AWARDS', 'PUBLICATIONS', 'SKILLS', 'ACTIVITIES', 'CONTACT',
@@ -114,39 +116,12 @@ function chapterVars(prog, count) {
     return v;
 }
 
-const FRAGMENT_SHADER = [
-    'precision highp float;',
-    'uniform float uTime; uniform float uScroll; uniform vec2 uRes;',
-    'void main(){',
-    '  vec2 uv = gl_FragCoord.xy / uRes;',
-    '  vec2 p = vec2(uv.x, uv.y * uRes.y / uRes.x);',
-    '  p.y += uScroll * 1.6;',
-    '  float f = sin(p.x * 5.5 + uTime * 0.32) * 0.5',
-    '          + sin(p.y * 7.0 - uTime * 0.26) * 0.5',
-    '          + sin((p.x + p.y) * 4.5 + uTime * 0.18);',
-    '  float glow = smoothstep(-1.0, 1.6, f);',
-    '  float beam = smoothstep(0.65, 0.0, abs(uv.y - 0.5 + 0.25 * sin(uTime * 0.12)));',
-    '  vec3 ground = vec3(0.075, 0.058, 0.152);',
-    '  vec3 fuchsia = vec3(0.898, 0.392, 0.784);',
-    '  vec3 violet = vec3(0.569, 0.517, 0.851);',
-    '  vec3 col = ground + fuchsia * glow * 0.20 * (0.45 + beam)',
-    '           + violet * pow(glow, 3.0) * 0.14;',
-    '  float g = step(0.988, fract(p.x * 13.0)) + step(0.988, fract(p.y * 13.0));',
-    '  col += fuchsia * g * 0.035;',
-    '  float vig = smoothstep(1.25, 0.25, length(uv - 0.5));',
-    '  col *= 0.55 + 0.65 * vig;',
-    '  gl_FragColor = vec4(col, 1.0);',
-    '}',
-].join('\n');
-
 // 챕터 하나당 스크롤 구간 = 고정 900 + 전환 500
 const HOLD_PX = 900;
 const TRANSITION_PX = 500;
 const SLOT_PX = HOLD_PX + TRANSITION_PX;
 
 export default function Home() {
-    const canvasRef = useRef(null);
-    const p3Ref = useRef(0);
     const intCloseTimerRef = useRef(null);
     const chapterIndexRef = useRef(0);
 
@@ -158,10 +133,6 @@ export default function Home() {
     const [chapterIndex, setChapterIndex] = useState(0);
     const [holdFraction, setHoldFraction] = useState(0);
     const [viewportH, setViewportH] = useState(0);
-
-    useEffect(() => {
-        p3Ref.current = p3;
-    }, [p3]);
 
     // 플레이트에서 why 패널로 넘어갈 때 깜빡여서 닫는 쪽만 딜레이
     const openInterest = useCallback(() => {
@@ -225,61 +196,6 @@ export default function Home() {
         return () => window.removeEventListener('resize', onResize);
     }, []);
 
-    useEffect(() => {
-        let mounted = true;
-        let renderer;
-        let raf;
-        let resizeObserver;
-        import('three').then((THREE) => {
-            const canvas = canvasRef.current;
-            if (!canvas || !mounted) return;
-            renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-            const scene = new THREE.Scene();
-            const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-            const uniforms = {
-                uTime: { value: 0 },
-                uScroll: { value: 0 },
-                uRes: { value: new THREE.Vector2(1, 1) },
-            };
-            const mat = new THREE.ShaderMaterial({
-                uniforms,
-                vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }',
-                fragmentShader: FRAGMENT_SHADER,
-            });
-            scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat));
-
-            const resize = () => {
-                const w = canvas.clientWidth;
-                const h = canvas.clientHeight;
-                renderer.setSize(w, h, false);
-                uniforms.uRes.value.set(w, h);
-            };
-            resize();
-            resizeObserver = new ResizeObserver(resize);
-            resizeObserver.observe(canvas);
-
-            const clock = new THREE.Clock();
-            const loop = () => {
-                if (!mounted) {
-                    renderer.dispose();
-                    return;
-                }
-                uniforms.uTime.value = clock.getElapsedTime();
-                uniforms.uScroll.value += (p3Ref.current - uniforms.uScroll.value) * 0.12;
-                renderer.render(scene, camera);
-                raf = requestAnimationFrame(loop);
-            };
-            loop();
-        });
-        return () => {
-            mounted = false;
-            if (raf) cancelAnimationFrame(raf);
-            if (resizeObserver) resizeObserver.disconnect();
-            if (renderer) renderer.dispose();
-        };
-    }, []);
-
     const ch3 = chapterIndex;
     const pct3 = String(Math.round(((chapterIndex + holdFraction) / CH_LAST) * 100)).padStart(3, '0') + '%';
     const chapter3 = String(ch3 + 1).padStart(2, '0');
@@ -340,7 +256,7 @@ export default function Home() {
             {/* 챕터가 전부 fixed라 스크롤 높이는 이걸로 만듦 */}
             <div style={{ height: CH_LAST * SLOT_PX + HOLD_PX + viewportH }}/>
 
-            <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', display: 'block', zIndex: 0 }}/>
+            <HologramBackground progress={p3}/>
 
             <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 5, background: 'repeating-linear-gradient(to bottom,rgba(255,255,255,.03) 0 1px,transparent 1px 3px)', mixBlendMode: 'overlay' }}/>
 
