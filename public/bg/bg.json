@@ -1,0 +1,22 @@
+{
+  "video": "bg.mp4",
+  "poster": "bg-poster.webp",
+  "still": "bg-still.webp",
+  "colorRect": [
+    0.0,
+    0.0,
+    1.0,
+    0.5
+  ],
+  "depthRect": [
+    0.0,
+    0.5,
+    1.0,
+    1.0
+  ],
+  "width": 640,
+  "height": 360,
+  "frames": 240,
+  "fps": 30.0,
+  "duration": 8.0
+}
