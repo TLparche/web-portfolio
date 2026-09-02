@@ -9,10 +9,23 @@ function smoothstep(a, b, x) {
     return t * t * (3 - 2 * t);
 }
 
+function pxRect(rect, fw, fh) {
+    const [x0, y0, x1, y1] = rect;
+    return [x0 * fw, y0 * fh, (x1 - x0) * fw, (y1 - y0) * fh];
+}
+
 export function createSoftRenderer(canvas, meta, grid) {
     const [gw, gh] = grid;
     const aspect = meta.width / meta.height;
     const ctx = canvas.getContext('2d');
+
+    const frameW = Math.round(meta.width / (meta.colorRect[2] - meta.colorRect[0]));
+    const frameH = Math.round(meta.height / (meta.colorRect[3] - meta.colorRect[1]));
+    const cRect = pxRect(meta.colorRect, frameW, frameH);
+    const dRect = pxRect(meta.depthRect, frameW, frameH);
+    const bRect = meta.backRect ? pxRect(meta.backRect, frameW, frameH) : null;
+    const dGate = bRect ? [0.02, 0.10] : [0.012, 0.07];
+    const lGate = bRect ? [0.0, 0.04] : [0.02, 0.12];
 
     // 영상을 격자 크기로 줄여 받는 곳, 위 절반이 컬러 아래가 깊이
     const grab = document.createElement('canvas');
@@ -63,7 +76,8 @@ export function createSoftRenderer(canvas, meta, grid) {
     function frameChanged() {
         const el = source;
         if (!el) return;
-        gctx.drawImage(el, 0, 0, meta.width, meta.height * 2, 0, 0, gw, gh * 2);
+        gctx.drawImage(el, cRect[0], cRect[1], cRect[2], cRect[3], 0, 0, gw, gh);
+        gctx.drawImage(el, dRect[0], dRect[1], dRect[2], dRect[3], 0, gh, gw, gh);
         const px = gctx.getImageData(0, 0, gw, gh * 2).data;
         const dOff = gw * gh * 4;
 
@@ -78,7 +92,7 @@ export function createSoftRenderer(canvas, meta, grid) {
             depth[i] = px[dOff + c] / 255;
             const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
             // 셰이더와 같은 게이트
-            alpha[i] = smoothstep(0.012, 0.07, depth[i]) * smoothstep(0.02, 0.12, lum);
+            alpha[i] = smoothstep(dGate[0], dGate[1], depth[i]) * smoothstep(lGate[0], lGate[1], lum);
         }
 
         // 실루엣 경계에서 늘어나는 점 제거
@@ -90,6 +104,22 @@ export function createSoftRenderer(canvas, meta, grid) {
                 alpha[i] *= 1 - smoothstep(0.035, 0.11, Math.max(dx, dy));
             }
         }
+    }
+
+    // 점구름과 같은 cover 틀로 배경을 깔아야 오브젝트 위치가 맞는다
+    function drawBack(fade) {
+        const cw = canvas.width;
+        const ch = canvas.height;
+        let dw = cw;
+        let dh = cw / aspect;
+        if (dh < ch) {
+            dh = ch;
+            dw = ch * aspect;
+        }
+        ctx.globalAlpha = fade;
+        ctx.drawImage(source, bRect[0], bRect[1], bRect[2], bRect[3],
+            (cw - dw) / 2, (ch - dh) / 2, dw, dh);
+        ctx.globalAlpha = 1;
     }
 
     function render(yaw, pitch, fade) {
@@ -142,6 +172,7 @@ export function createSoftRenderer(canvas, meta, grid) {
 
         bctx.putImageData(img, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (bRect) drawBack(fade);
         ctx.drawImage(buf, 0, 0, bw, bh, 0, 0, canvas.width, canvas.height);
     }
 
