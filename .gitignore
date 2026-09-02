@@ -138,12 +138,17 @@ dist
 # 디자인 원본, 로컬 문서
 design-brief/
 desgin-codebase/
-HANDOFF.md
 .claude/
 
-# 배경 파이프라인 로컬 산출물
-background/.venv/
-background/input/
-background/work/
+# 문서는 저장소에 두지 않는다 (HANDOFF.md, README.md 등 전부 로컬)
+*.md
+
+# 배경 파이프라인. 소스와 README만 추적하고 환경/원본/중간산출물은 전부 제외
+background/*
+!background/src/
 __pycache__/
 *.pyc
+
+# 배포할 수 없는 배경 에셋은 전부 여기. 남의 영상으로 만든 실험용 변형이 들어간다.
+# public/bg 바로 아래의 bg.* 는 저작권 없는 합성 배경(make_placeholder.py)이라 추적한다.
+public/bg/test/
