@@ -2,16 +2,44 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import { createFrameCamera } from './frameCamera';
 import { createGlRenderer } from './glRender';
 import { createSoftRenderer } from './softRender';
 
-// 커서가 화면 가장자리일 때 닿는 회전 한계
-const YAW_LIMIT = 16 * Math.PI / 180;
-const PITCH_LIMIT = 10 * Math.PI / 180;
+// 커서가 화면 가장자리일 때 닿는 회전 한계. 화면 구도는 카메라가 잡는다
+const YAW_LIMIT = 5 * Math.PI / 180;
+const PITCH_LIMIT = 5 * Math.PI / 180;
 const EASE = 0.06;
 const RECENTER = 0.04;
 
+// 챕터에 도착할 때 한 번에 트는 각도. 방향은 챕터마다 번갈아 뒤집힌다
+// 키우면 glRender의 OVERSCAN도 같이 올려야 평면 끝이 안 드러난다
+const SWING = 14 * Math.PI / 180;
+
+// 도착 후 새 자세까지 걸리는 시간. 스크롤 속도와 무관하게 이 시간으로 끝난다
+const SWING_MS = 200;
+
+// 챕터마다 좌우로 번갈아 눕힌 기준 yaw. 도착할 때마다 SWING만큼 차이가 난다
+const yawOf = (i) => (i % 2 ? 0.5 : -0.5) * SWING;
+
+// 경계에서 1px만 흔들려도 챕터가 뒤집히면 카메라가 울렁인다
+// 새 챕터로 인정하려면 경계에서 슬롯의 이 비율만큼 들어와야 한다
+const CH_DEADBAND = 0.08;
+
+// 처음이 빠르고 끝이 길게 잦아드는 감쇠. 훅 돌아간 뒤 자리를 잡는다
+function easeOut(t) {
+    const u = 1 - t;
+    return 1 - u * u * u * u;
+}
+
 const SOFT_GRID = [240, 135];
+
+// 에셋을 여러 개 두고 고를 때. pack.py --name 으로 만든 매니페스트 이름을 넣는다
+const MANIFEST = process.env.NEXT_PUBLIC_BG_MANIFEST || 'bg.json';
+
+// 매니페스트가 하위 폴더에 있으면 영상과 이미지도 같은 폴더에서 찾는다.
+// 저작권 때문에 못 올리는 실험용 에셋을 test/ 같은 데 몰아넣고 골라 쓰기 위한 것
+const ASSET_DIR = MANIFEST.slice(0, MANIFEST.lastIndexOf('/') + 1);
 
 // WebGL 유무, 정점 텍스처 유닛, 소프트웨어 렌더러 확인
 function probeGL() {
@@ -62,29 +90,41 @@ function rememberDismiss() {
 }
 
 // 약한 기기는 점 줄이고 이웃 샘플링도 뺌
-function pickTier() {
+// size는 점 지름을 격자 한 칸의 몇 배로 할지. 1 미만이면 칸 사이가 벌어지고
+// 정격자 무늬가 다시 드러날 수 있다. 격자가 성긴 하위 티어는 조금 더 겹쳐 둔다
+function pickTier(meta) {
     const mem = navigator.deviceMemory || 4;
     const cores = navigator.hardwareConcurrency || 4;
+    let t;
     if (matchMedia('(pointer: coarse)').matches || mem <= 4 || cores <= 4) {
-        return { grid: [240, 135], edge: false, size: 3.2 };
+        t = { grid: [240, 135], edge: false, size: 1.33 };
+    } else if (mem <= 8 || cores <= 8) {
+        t = { grid: [480, 270], edge: true, size: 1.23 };
+    } else {
+        t = { grid: [1280, 720], edge: true, size: 1.15 };
     }
-    if (mem <= 8 || cores <= 8) return { grid: [360, 203], edge: true, size: 2.9 };
-    return { grid: [480, 270], edge: true, size: 2.6 };
+
+    // 격자가 텍스처보다 촘촘하면 보간만 늘어남, 에셋 해상도에서 자름
+    const gw = Math.min(t.grid[0], meta.width);
+    const gh = Math.min(t.grid[1], meta.height);
+    return { grid: [gw, gh], edge: t.edge, size: t.size };
 }
 
 function has2d() {
     return !!document.createElement('canvas').getContext('2d');
 }
 
-export default function HologramBackground({ progress }) {
+export default function HologramBackground({ progress, chapterProgress, onReady }) {
     const canvasRef = useRef(null);
     const progressRef = useRef(0);
+    const chapterRef = useRef(0);
     const [stillSrc, setStillSrc] = useState(null);
     const [notice, setNotice] = useState(null);
 
     useEffect(() => {
         progressRef.current = progress;
-    }, [progress]);
+        chapterRef.current = chapterProgress || 0;
+    }, [progress, chapterProgress]);
 
     useEffect(() => {
         const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -101,8 +141,10 @@ export default function HologramBackground({ progress }) {
         }
 
         if (reduced || (!gl.ok && !soft)) {
-            fetch(base + '/bg/bg.json').then((r) => r.json()).then((meta) => {
-                if (mounted) setStillSrc(base + '/bg/' + meta.still);
+            fetch(base + '/bg/' + MANIFEST).then((r) => r.json()).then((meta) => {
+                if (!mounted) return;
+                setStillSrc(base + '/bg/' + ASSET_DIR + meta.still);
+                if (onReady) onReady();
             });
             return () => { mounted = false; };
         }
@@ -116,6 +158,39 @@ export default function HologramBackground({ progress }) {
         let fade = 0;
 
         const look = { yaw: 0, pitch: 0, tYaw: 0, tPitch: 0, tracking: false };
+
+        // cam이 지금 자세. 도착할 때 from에서 to로 한 번 흐르고 멈춘다
+        const cam = { x: 0, y: 0, z: 0, roll: 0, yaw: 0 };
+        const from = { x: 0, y: 0, z: 0, roll: 0, yaw: 0 };
+        const to = { x: 0, y: 0, z: 0, roll: 0, yaw: 0 };
+        let tweenAt = -1;
+        let frameCam = null;
+        let cpNow = () => 0;
+        let posedCh = -1;
+
+        // 챕터에 도착했을 때만 구도를 재고 트윈을 건다. 그 사이엔 카메라가 멈춰 있다
+        const reframe = (el, force) => {
+            if (!frameCam) return;
+            const cp = cpNow();
+            const ch = Math.floor(cp);
+            const t = cp - ch;
+            if (!force) {
+                if (ch === posedCh) return;
+                // 경계 바로 옆은 아직 넘어온 걸로 안 본다. 되돌아갈 때도 같은 폭
+                if (ch > posedCh && t < CH_DEADBAND) return;
+                if (ch < posedCh && t > 1 - CH_DEADBAND) return;
+            }
+            posedCh = ch;
+            const p = frameCam.analyze(el);
+            Object.assign(from, cam);
+            to.x = p.x;
+            to.y = p.y;
+            to.z = p.z;
+            to.roll = p.roll;
+            to.yaw = yawOf(ch);
+            tweenAt = performance.now();
+            dirty = true;
+        };
 
         // 커서 위치를 그대로 회전량으로, 부호 뒤집으면 반대 방향
         const onMove = (e) => {
@@ -135,13 +210,14 @@ export default function HologramBackground({ progress }) {
             dirty = true;
         };
 
-        fetch(base + '/bg/bg.json').then((r) => r.json()).then(async (meta) => {
+        fetch(base + '/bg/' + MANIFEST).then((r) => r.json()).then(async (meta) => {
             if (!mounted) return;
 
             if (gl.ok) {
                 const THREE = await import('three');
                 if (!mounted) return;
-                engine = createGlRenderer(THREE, canvas, meta, pickTier());
+                engine = createGlRenderer(THREE, canvas, meta, pickTier(meta));
+                frameCam = createFrameCamera(meta);
             } else {
                 engine = createSoftRenderer(canvas, meta, SOFT_GRID);
             }
@@ -159,14 +235,34 @@ export default function HologramBackground({ progress }) {
 
             // 포스터로 먼저 그리고, 영상 준비되면 갈아끼움
             const poster = new Image();
-            poster.src = base + '/bg/' + meta.poster;
+            poster.src = base + '/bg/' + ASSET_DIR + meta.poster;
             poster.decoding = 'sync';
             poster.onload = () => {
                 if (!mounted) return;
                 engine.setFrameSource(poster, 'image');
+                reframe(poster, true);
                 dirty = true;
+                if (onReady) onReady();
                 startVideo(meta);
             };
+
+            const segs = meta.chapters;
+            const last = segs ? segs.length - 1 : 0;
+
+            // 챕터 구간이 있으면 슬롯 하나가 그 챕터 클립 전체를 재생함
+            const frameAt = () => {
+                if (!segs) {
+                    const p = Math.max(0, Math.min(1, progressRef.current));
+                    return Math.round(p * (meta.frames - 1));
+                }
+                const cp = Math.max(0, Math.min(last + 0.999, chapterRef.current));
+                const ch = Math.min(last, Math.floor(cp));
+                const seg = segs[ch];
+                const span = Math.max(1, seg.out - seg.in - 1);
+                return seg.in + Math.round((cp - ch) * span);
+            };
+
+            cpNow = () => Math.max(0, Math.min(last + 0.999, chapterRef.current));
 
             const step = meta.duration / meta.frames;
             let lastSeek = -1;
@@ -178,12 +274,13 @@ export default function HologramBackground({ progress }) {
 
                 // 스크롤 진행도를 프레임 위치로, 반프레임 넘게 움직였을 때만 탐색
                 if (video && video.readyState >= 2) {
-                    const p = Math.max(0, Math.min(1, progressRef.current));
-                    const t = Math.round(p * (meta.frames - 1)) * step;
+                    const t = frameAt() * step;
                     if (Math.abs(t - lastSeek) > step * 0.5) {
                         lastSeek = t;
                         video.currentTime = t;
                     }
+                    // 탐색이 끝난 프레임에서만 잰다. 게이트에 걸리면 바로 빠져나온다
+                    if (!video.seeking) reframe(video);
                 }
 
                 if (!look.tracking) {
@@ -198,6 +295,19 @@ export default function HologramBackground({ progress }) {
                     dirty = true;
                 }
 
+                // 도착 트윈. 다 흐르면 놓아서 다음 도착까지 아무것도 안 움직인다
+                if (tweenAt >= 0) {
+                    const t = Math.min(1, (performance.now() - tweenAt) / SWING_MS);
+                    const k = easeOut(t);
+                    cam.x = from.x + (to.x - from.x) * k;
+                    cam.y = from.y + (to.y - from.y) * k;
+                    cam.z = from.z + (to.z - from.z) * k;
+                    cam.roll = from.roll + (to.roll - from.roll) * k;
+                    cam.yaw = from.yaw + (to.yaw - from.yaw) * k;
+                    if (t >= 1) tweenAt = -1;
+                    dirty = true;
+                }
+
                 if (fade < 0.999) {
                     fade += (1 - fade) * 0.05;
                     dirty = true;
@@ -206,14 +316,14 @@ export default function HologramBackground({ progress }) {
                 // 아무것도 안 변했으면 안 그림
                 if (!dirty) return;
                 dirty = false;
-                engine.render(look.yaw, look.pitch, fade);
+                engine.render(look.yaw + cam.yaw, look.pitch, fade, cam);
             };
             loop();
         });
 
         function startVideo(meta) {
             video = document.createElement('video');
-            video.src = base + '/bg/' + meta.video;
+            video.src = base + '/bg/' + ASSET_DIR + meta.video;
             video.muted = true;
             video.playsInline = true;
             video.preload = 'auto';
@@ -231,6 +341,8 @@ export default function HologramBackground({ progress }) {
             video.addEventListener('canplaythrough', () => {
                 if (!mounted) return;
                 engine.setFrameSource(video, 'video');
+                // 포스터로 잰 구도는 챕터 0 기준이다. 영상으로 넘어가면 다시 재게 푼다
+                posedCh = -1;
                 dirty = true;
             });
         }
