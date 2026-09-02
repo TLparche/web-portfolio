@@ -15,6 +15,9 @@
     --color-accent-900: #3f1636;
     --font-sans: var(--font-inter), Inter, system-ui, sans-serif;
     --font-mono: ui-monospace, Menlo, monospace;
+
+    /* 배경을 뒤로 눌러 본문 가독성을 지킨다. 밝은 소스일수록 낮게 */
+    --dh-bg-dim: 0.45;
 }
 
 * {
@@ -43,6 +46,7 @@ body::-webkit-scrollbar {
     display: block;
     z-index: 0;
     pointer-events: none;
+    opacity: var(--dh-bg-dim);
 }
 
 /* WebGL을 못 쓰거나 움직임을 줄인 경우의 정지 배경 */
@@ -53,7 +57,7 @@ body::-webkit-scrollbar {
     pointer-events: none;
     background-size: cover;
     background-position: center;
-    opacity: 0.5;
+    opacity: var(--dh-bg-dim);
 }
 
 /* WebGL을 못 쓸 때 뜨는 가속 안내, 팝업(30)보다 아래 */
@@ -132,6 +136,66 @@ body::-webkit-scrollbar {
         bottom: 12px;
         max-width: none;
     }
+}
+
+/* 랜딩이 떠 있는 동안 스크롤 잠금 */
+html.dh-locked,
+html.dh-locked body {
+    overflow: hidden;
+}
+
+@keyframes landSweep {
+    0% { transform: translateX(-120%); }
+    100% { transform: translateX(320%); }
+}
+@keyframes landMark {
+    0% { transform: rotate(45deg) scale(1); opacity: 0.55; }
+    50% { transform: rotate(45deg) scale(1.35); opacity: 1; }
+    100% { transform: rotate(45deg) scale(1); opacity: 0.55; }
+}
+.dh-landing {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    background: #0f0c1a;
+    transition: opacity 0.52s ease, transform 0.52s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.dh-landing-out {
+    opacity: 0;
+    transform: scale(1.04);
+    pointer-events: none;
+}
+.dh-landing-mark {
+    width: 9px;
+    height: 9px;
+    background: var(--color-accent);
+    box-shadow: 0 0 16px var(--color-accent);
+    animation: landMark 1.6s ease-in-out infinite;
+}
+.dh-landing-name {
+    font: 500 12px var(--font-mono);
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: rgba(236, 233, 245, 0.7);
+}
+.dh-landing-bar {
+    position: relative;
+    width: 132px;
+    height: 1px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.1);
+}
+.dh-landing-bar span {
+    position: absolute;
+    inset: 0;
+    width: 34%;
+    background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+    animation: landSweep 1.25s ease-in-out infinite;
 }
 
 a {

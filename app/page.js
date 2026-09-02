@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import HologramBackground from './background/HologramBackground';
+import Landing from './Landing';
 
 const CH_NAMES = [
     'ABOUT', 'INTEREST', 'PROJECTS', 'EXPERIENCE', 'CERTIFICATIONS', 'EDUCATION',
@@ -121,6 +122,11 @@ const HOLD_PX = 900;
 const TRANSITION_PX = 500;
 const SLOT_PX = HOLD_PX + TRANSITION_PX;
 
+// 임시: 배경 영상을 끝까지 보려고 마지막 챕터 뒤에 빈 슬롯을 붙였음.
+// bg.json의 chapters 개수와 CH_COUNT + BLANK_SLOTS가 같아야 한다.
+const BLANK_SLOTS = 0;
+const SLOT_LAST = CH_LAST + BLANK_SLOTS;
+
 export default function Home() {
     const intCloseTimerRef = useRef(null);
     const chapterIndexRef = useRef(0);
@@ -133,6 +139,8 @@ export default function Home() {
     const [chapterIndex, setChapterIndex] = useState(0);
     const [holdFraction, setHoldFraction] = useState(0);
     const [viewportH, setViewportH] = useState(0);
+    const [bgReady, setBgReady] = useState(false);
+    const [slotProgress, setSlotProgress] = useState(0);
 
     // 플레이트에서 why 패널로 넘어갈 때 깜빡여서 닫는 쪽만 딜레이
     const openInterest = useCallback(() => {
@@ -159,7 +167,7 @@ export default function Home() {
     }, [glide]);
 
     const prevCh = useCallback(() => {
-        goToChapter(Math.max(0, chapterIndexRef.current - 1));
+        goToChapter(Math.max(0, Math.min(CH_LAST, chapterIndexRef.current) - 1));
     }, [goToChapter]);
 
     const nextCh = useCallback(() => {
@@ -170,15 +178,17 @@ export default function Home() {
     useEffect(() => {
         const onScroll = () => {
             const y = window.scrollY;
-            const slot = Math.min(CH_LAST, Math.max(0, Math.floor(y / SLOT_PX)));
+            const slot = Math.min(SLOT_LAST, Math.max(0, Math.floor(y / SLOT_PX)));
             const within = y - slot * SLOT_PX;
             const transitionFrac = Math.min(1, Math.max(0, (within - HOLD_PX) / TRANSITION_PX));
-            const progress = Math.min(CH_LAST, slot + transitionFrac);
+            const progress = Math.min(SLOT_LAST, slot + transitionFrac);
 
-            setHoldFraction(Math.min(1, Math.max(0, within / SLOT_PX)));
+            const hf = Math.min(1, Math.max(0, within / SLOT_PX));
+            setHoldFraction(hf);
+            setSlotProgress(slot + hf);
             setP3(progress / CH_LAST);
 
-            const idx = Math.min(CH_LAST, Math.round(progress));
+            const idx = Math.min(SLOT_LAST, Math.round(progress));
             if (idx !== chapterIndexRef.current) {
                 chapterIndexRef.current = idx;
                 setChapterIndex(idx);
@@ -197,9 +207,11 @@ export default function Home() {
     }, []);
 
     const ch3 = chapterIndex;
-    const pct3 = String(Math.round(((chapterIndex + holdFraction) / CH_LAST) * 100)).padStart(3, '0') + '%';
-    const chapter3 = String(ch3 + 1).padStart(2, '0');
-    const chapterName3 = CH_NAMES[ch3];
+    // 빈 슬롯에서는 이름 있는 마지막 챕터를 표시에 쓴다
+    const navIdx = Math.min(CH_LAST, ch3);
+    const pct3 = String(Math.round(((chapterIndex + holdFraction) / SLOT_LAST) * 100)).padStart(3, '0') + '%';
+    const chapter3 = String(navIdx + 1).padStart(2, '0');
+    const chapterName3 = CH_NAMES[navIdx];
     const chapterVarsObj = chapterVars(p3, CH_COUNT);
 
     const pjd = PROJ[proj];
@@ -237,7 +249,7 @@ export default function Home() {
 
     const progress3Style = {
         position: 'absolute', top: 0, left: 0, width: '100%',
-        height: (((chapterIndex + holdFraction) / CH_LAST) * 100).toFixed(2) + '%',
+        height: (((chapterIndex + holdFraction) / SLOT_LAST) * 100).toFixed(2) + '%',
         background: 'linear-gradient(var(--color-accent),var(--color-accent-2))',
         boxShadow: '0 0 12px var(--color-accent)',
         transition: 'height .12s linear',
@@ -253,10 +265,12 @@ export default function Home() {
 
     return (
         <>
-            {/* 챕터가 전부 fixed라 스크롤 높이는 이걸로 만듦 */}
-            <div style={{ height: CH_LAST * SLOT_PX + HOLD_PX + viewportH }}/>
+            <Landing ready={bgReady}/>
 
-            <HologramBackground progress={p3}/>
+            {/* 챕터가 전부 fixed라 스크롤 높이는 이걸로 만듦 */}
+            <div style={{ height: SLOT_LAST * SLOT_PX + HOLD_PX + viewportH }}/>
+
+            <HologramBackground progress={p3} chapterProgress={slotProgress} onReady={() => setBgReady(true)}/>
 
             <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 5, background: 'repeating-linear-gradient(to bottom,rgba(255,255,255,.03) 0 1px,transparent 1px 3px)', mixBlendMode: 'overlay' }}/>
 
@@ -273,7 +287,7 @@ export default function Home() {
 
             <nav className={"dh-side-nav"}>
                 {CH_NAMES.map((name, i) => (
-                    <div key={name} onClick={() => goToChapter(i)} className={'dh-side-item' + (i === ch3 ? ' dh-side-active' : '')}>
+                    <div key={name} onClick={() => goToChapter(i)} className={'dh-side-item' + (i === navIdx ? ' dh-side-active' : '')}>
                         <span className="dh-side-num">{String(i + 1).padStart(2, '0')}</span>
                         <span className="dh-side-name">{name}</span>
                     </div>
@@ -285,8 +299,8 @@ export default function Home() {
             </div>
 
             <div style={{ position: 'fixed', right: '20px', bottom: '20px', zIndex: '9', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
-                <span onClick={ch3 <= 0 ? undefined : prevCh} className={'dh-nav-btn dh-nav-prev ' + (ch3 <= 0 ? 'dh-nav-disabled' : 'dh-nav-active')}>▲</span>
-                <span onClick={ch3 >= CH_LAST ? undefined : nextCh} className={'dh-nav-btn dh-nav-next ' + (ch3 >= CH_LAST ? 'dh-nav-disabled' : 'dh-nav-active')}>▼</span>
+                <span onClick={navIdx <= 0 ? undefined : prevCh} className={'dh-nav-btn dh-nav-prev ' + (navIdx <= 0 ? 'dh-nav-disabled' : 'dh-nav-active')}>▲</span>
+                <span onClick={navIdx >= CH_LAST ? undefined : nextCh} className={'dh-nav-btn dh-nav-next ' + (navIdx >= CH_LAST ? 'dh-nav-disabled' : 'dh-nav-active')}>▼</span>
             </div>
 
             <div style={chaptersStyle}>
