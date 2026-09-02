@@ -2,21 +2,75 @@
   "video": "bg.mp4",
   "poster": "bg-poster.webp",
   "still": "bg-still.webp",
-  "colorRect": [
+  "chapters": [
+    {
+      "in": 0,
+      "out": 60
+    },
+    {
+      "in": 60,
+      "out": 120
+    },
+    {
+      "in": 120,
+      "out": 180
+    },
+    {
+      "in": 180,
+      "out": 240
+    },
+    {
+      "in": 240,
+      "out": 300
+    },
+    {
+      "in": 300,
+      "out": 360
+    },
+    {
+      "in": 360,
+      "out": 420
+    },
+    {
+      "in": 420,
+      "out": 480
+    },
+    {
+      "in": 480,
+      "out": 540
+    },
+    {
+      "in": 540,
+      "out": 600
+    },
+    {
+      "in": 600,
+      "out": 660
+    }
+  ],
+  "backRect": [
     0.0,
     0.0,
     1.0,
-    0.5
+    0.6666666666666666
+  ],
+  "colorRect": [
+    0.0,
+    0.6666666666666666,
+    0.5,
+    1.0
   ],
   "depthRect": [
-    0.0,
     0.5,
+    0.6666666666666666,
     1.0,
     1.0
   ],
   "width": 640,
   "height": 360,
-  "frames": 240,
-  "fps": 30.0,
-  "duration": 8.0
+  "frames": 660,
+  "fps": 24.0,
+  "duration": 27.5,
+  "backWidth": 1280,
+  "backHeight": 720
 }
