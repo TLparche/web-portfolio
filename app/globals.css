@@ -60,6 +60,41 @@ body::-webkit-scrollbar {
     opacity: var(--dh-bg-dim);
 }
 
+/* 전환 순간의 임팩트 프레임. 불투명도는 렌더 루프가 넣음 */
+.dh-bg-flash {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+    will-change: opacity;
+    background: radial-gradient(circle at 50% 45%,
+        rgba(255, 245, 252, 0.9), rgba(229, 100, 200, 0.5) 48%, rgba(145, 132, 217, 0.2));
+    mix-blend-mode: screen;
+}
+
+/* 집중선. 원뿔 그라디언트 둘을 겹쳐 간격을 불규칙하게 하고 가운데는 마스크로 비움 */
+.dh-bg-rays {
+    display: none;
+    position: fixed;
+    inset: -25%;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+    will-change: opacity, transform;
+    background:
+        repeating-conic-gradient(from 0deg at 50% 50%,
+            rgba(255, 255, 255, 0.6) 0deg 1.1deg,
+            transparent 1.1deg 7deg),
+        repeating-conic-gradient(from 2.5deg at 50% 50%,
+            rgba(255, 255, 255, 0.34) 0deg 0.5deg,
+            transparent 0.5deg 4.3deg);
+    mask-image: radial-gradient(circle at 50% 50%, transparent 18%, #000 58%);
+    -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 18%, #000 58%);
+    mix-blend-mode: screen;
+}
+
 /* WebGL을 못 쓸 때 뜨는 가속 안내, 팝업(30)보다 아래 */
 @keyframes gpuNoticeIn {
     from { opacity: 0; transform: translateY(14px); }

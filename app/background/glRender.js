@@ -66,13 +66,37 @@ const VERTEX_SHADER = [
 const FRAGMENT_SHADER = [
     'precision highp float;',
     'uniform float uFade;',
+    'uniform vec2 uRes;',
+    'uniform vec2 uWipeDir;',
+    // x는 띠 중심, y는 띠 반폭
+    'uniform vec2 uWipeAt;',
+    'uniform float uWipeBias;',
+    'uniform float uWipeFold;',
+    // 0이면 안 자름, 1이면 띠 앞쪽(나가는 클립), -1이면 띠 뒤쪽(들어오는 클립)
+    'uniform float uWipeSide;',
+    // 패널 한 칸. xy가 법선, z가 offset, w는 이 평면 사용 여부
+    'uniform vec4 uPlane[4];',
     'varying vec3 vColor;',
     'varying float vAlpha;',
     'void main(){',
+    '  vec2 p = gl_FragCoord.xy / uRes;',
+    '  for (int i = 0; i < 4; i++) {',
+    '    if (uPlane[i].w > 0.5 && dot(p, uPlane[i].xy) + uPlane[i].z < 0.0) discard;',
+    '  }',
+    '  float wipeA = 1.0;',
+    '  if (uWipeSide != 0.0) {',
+    '    vec2 q = p - 0.5;',
+    '    if (uWipeFold > 0.5) q = abs(q);',
+    '    float d = dot(q, uWipeDir) + uWipeBias - uWipeAt.x;',
+    // 띠 폭만큼 알파로 넘김. 두 쪽을 합치면 1
+    '    float s = smoothstep(-uWipeAt.y, uWipeAt.y, d);',
+    '    wipeA = uWipeSide > 0.0 ? s : 1.0 - s;',
+    '    if (wipeA < 0.004) discard;',
+    '  }',
     '  vec2 c = gl_PointCoord - 0.5;',
     '  float r2 = dot(c, c);',
     '  if (r2 > 0.25) discard;',
-    '  float a = vAlpha * uFade * (1.0 - smoothstep(0.03, 0.25, r2));',
+    '  float a = vAlpha * uFade * wipeA * (1.0 - smoothstep(0.03, 0.25, r2));',
     '  if (a < 0.008) discard;',
     '  gl_FragColor = vec4(vColor, a);',
     '}',
@@ -177,6 +201,13 @@ export function createGlRenderer(THREE, canvas, meta, tier) {
         uSize: { value: tier.size },
         uPixelRatio: { value: renderer.getPixelRatio() },
         uFade: { value: 0 },
+        uRes: { value: new THREE.Vector2(1, 1) },
+        uWipeDir: { value: new THREE.Vector2(0, -1) },
+        uWipeAt: { value: new THREE.Vector2(0, 0) },
+        uWipeBias: { value: 0.5 },
+        uWipeFold: { value: 0 },
+        uWipeSide: { value: 0 },
+        uPlane: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 0, 0)) },
     };
     const pointDefines = tier.edge ? { EDGE_MASK: '' } : {};
     if (!layered && CROSSFADE) pointDefines.SPLIT_MATTE = '';
@@ -247,6 +278,42 @@ export function createGlRenderer(THREE, canvas, meta, tier) {
         if (texture) texture.needsUpdate = true;
     }
 
+    let stillCanvas = null;
+    let stillCtx = null;
+    let stillTex = null;
+
+    // 지금 프레임을 정지 텍스처로 복사해 둠
+    function captureStill(el) {
+        const w = el.videoWidth || el.naturalWidth || frameW;
+        const h = el.videoHeight || el.naturalHeight || frameH;
+        if (!w || !h) return false;
+        if (!stillCanvas) {
+            stillCanvas = document.createElement('canvas');
+            stillCtx = stillCanvas.getContext('2d');
+        }
+        if (stillCanvas.width !== w || stillCanvas.height !== h) {
+            stillCanvas.width = w;
+            stillCanvas.height = h;
+        }
+        stillCtx.drawImage(el, 0, 0, w, h);
+        if (!stillTex) {
+            stillTex = new THREE.Texture(stillCanvas);
+            stillTex.minFilter = THREE.LinearFilter;
+            stillTex.magFilter = THREE.LinearFilter;
+            stillTex.generateMipmaps = false;
+        }
+        stillTex.needsUpdate = true;
+        return true;
+    }
+
+    // lookYaw는 커서 추종분, 자세별 yaw는 cam에 있음
+    function place(lookYaw, pitch, cam) {
+        group.rotation.y = lookYaw + (cam.yaw || 0);
+        group.rotation.x = pitch;
+        camera.position.set(cam.x * coverScale, cam.y * coverScale, CAM_DIST * (1 + cam.z));
+        camera.rotation.z = cam.roll;
+    }
+
     function resize() {
         const w = canvas.clientWidth;
         const h = canvas.clientHeight;
@@ -256,6 +323,8 @@ export function createGlRenderer(THREE, canvas, meta, tier) {
         camera.updateProjectionMatrix();
         const pixelRatio = renderer.getPixelRatio();
         uniforms.uPixelRatio.value = pixelRatio;
+        // 전환 컷이 gl_FragCoord를 씀
+        uniforms.uRes.value.set(w * pixelRatio, h * pixelRatio);
 
         // 화면을 꽉 채우는 cover 스케일
         const visH = 2 * Math.tan((CAM_FOV / 2) * Math.PI / 180) * CAM_DIST;
@@ -292,8 +361,41 @@ export function createGlRenderer(THREE, canvas, meta, tier) {
         renderer.render(scene, camera);
     }
 
+    // 전환 구간. 항목마다 텍스처와 자세와 잘라낼 영역이 다름
+    // 아무도 안 그린 자리가 그대로 검은 거터
+    function renderDraws(lookYaw, pitch, fade, draws) {
+        if (!texture || !stillTex) return false;
+        renderer.clear();
+
+        for (const d of draws) {
+            // 같은 칸에 정지와 영상을 겹칠 때 알파가 갈림
+            uniforms.uFade.value = fade * (d.alpha === undefined ? 1 : d.alpha);
+            for (let i = 0; i < 4; i++) {
+                const pl = d.planes[i];
+                if (pl) uniforms.uPlane.value[i].set(pl[0], pl[1], pl[2], 1);
+                else uniforms.uPlane.value[i].set(0, 0, 0, 0);
+            }
+            if (d.sweep) {
+                uniforms.uWipeDir.value.set(d.sweep.dir[0], d.sweep.dir[1]);
+                uniforms.uWipeBias.value = d.sweep.bias;
+                uniforms.uWipeFold.value = d.sweep.fold;
+                uniforms.uWipeAt.value.set(d.sweep.pos, d.sweep.half);
+            }
+            uniforms.uWipeSide.value = d.side;
+            uniforms.uTex.value = d.src === 'video' ? texture : stillTex;
+            place(lookYaw, pitch, d.cam);
+            renderer.render(scene, camera);
+        }
+
+        uniforms.uWipeSide.value = 0;
+        for (let i = 0; i < 4; i++) uniforms.uPlane.value[i].set(0, 0, 0, 0);
+        uniforms.uTex.value = texture;
+        return true;
+    }
+
     function dispose() {
         if (texture) texture.dispose();
+        if (stillTex) stillTex.dispose();
         geo.dispose();
         mat.dispose();
         if (backMat) backMat.dispose();
@@ -301,5 +403,5 @@ export function createGlRenderer(THREE, canvas, meta, tier) {
     }
 
     resize();
-    return { setFrameSource, frameChanged, render, resize, dispose };
+    return { setFrameSource, frameChanged, captureStill, render, renderDraws, resize, dispose };
 }

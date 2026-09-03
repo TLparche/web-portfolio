@@ -1,21 +1,22 @@
-// 챕터 하나가 영상/카메라/전환 세 구간으로 나뉜다.
-// 영상 구간은 스크롤이 클립 프레임을 넘기고, 카메라 구간은 마지막 프레임에 멈춘 채
-// 카메라만 움직이고, 전환 구간은 검은 띠가 내려가며 다음 챕터로 넘어간다.
+// 챕터 하나가 영상/카메라/전환 세 구간으로 나뉨
+// 클립 하나는 앞 챕터의 전환 구간(lead)부터 나가기 시작해 자기 영상 구간에서 끝남
 
-// 스크롤 25px에 프레임 하나. 휠 한 틱(약 100px)이면 4프레임쯤 나간다
+// 클립 한 장을 넘기는 데 드는 스크롤. 체감은 play(lead + video) / 프레임수
 const PX_PER_FRAME = 25;
 
-// 소스 클립 하나의 길이. 챕터당 프레임 수와 맞아야 스크롤 속도가 25px/프레임이 된다
+// 소스 클립 하나의 길이. 1.6초가 소스 컷 경계에서 11개를 뽑을 수 있는 최대
 const SRC_FPS = 30;
-const CLIP_SEC = 2;
+const CLIP_SEC = 1.6;
 
 const BASE = {
     video: SRC_FPS * CLIP_SEC * PX_PER_FRAME,
-    camera: 750,
-    wipe: 600,
+    // 영상이 멈추고 전환이 시작되기까지. 휠 두 틱
+    camera: 200,
+    // 짧으면 패널이 툭툭 바뀜
+    wipe: 900,
 };
 
-// 챕터마다 다르게 줄 것만 적는다. 안 적은 구간은 위 기본값
+// 챕터마다 다르게 줄 것만 적음. 안 적은 구간은 위 기본값
 const CHAPTER_PX = {};
 
 function clampUnit(v) {
@@ -28,11 +29,16 @@ export function buildPlan(count) {
     let start = 0;
     for (let i = 0; i < count; i++) {
         const s = { ...BASE, ...CHAPTER_PX[i] };
-        // 마지막 챕터는 넘어갈 데가 없어서 전환 구간이 없다
+        // 마지막 챕터는 넘어갈 데가 없어서 전환 구간이 없음
         const wipe = i === count - 1 ? 0 : s.wipe;
         const total = s.video + s.camera + wipe;
-        plan.push({ start, total, video: s.video, camera: s.camera, wipe });
+        plan.push({ start, total, video: s.video, camera: s.camera, wipe, lead: 0, play: s.video });
         start += total;
+    }
+    // play가 그 클립의 총 재생 픽셀
+    for (let i = 1; i < count; i++) {
+        plan[i].lead = plan[i - 1].wipe;
+        plan[i].play = plan[i].lead + plan[i].video;
     }
     return plan;
 }
@@ -54,11 +60,27 @@ export function segmentAt(plan, y) {
     const camAt = within - s.video;
     const wipeAt = camAt - s.camera;
 
+    const video = clampUnit(within / s.video);
+    const wipe = s.wipe ? clampUnit(wipeAt / s.wipe) : 0;
+
+    // 지금 스크롤로 나가고 있는 클립과 그 안에서의 위치
+    let clip = ch;
+    let play;
+    if (wipe > 0) {
+        clip = ch + 1;
+        const n = plan[clip];
+        play = clampUnit((wipe * n.lead) / n.play);
+    } else {
+        play = clampUnit((s.lead + video * s.video) / s.play);
+    }
+
     return {
         chapter: ch,
-        video: clampUnit(within / s.video),
+        video,
         camera: s.camera ? clampUnit(camAt / s.camera) : (camAt >= 0 ? 1 : 0),
-        wipe: s.wipe ? clampUnit(wipeAt / s.wipe) : 0,
+        wipe,
         frac: within / s.total,
+        clip,
+        play,
     };
 }

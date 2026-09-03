@@ -111,9 +111,12 @@ function chapterVars(prog, count) {
     for (let i = 1; i <= count; i++) {
         const raw = clampUnit(0.5 + ((count - 1) * prog - (i - 1)) / 2);
         const t = raw * raw * (3 - 2 * raw);
+        const o = clampUnit(1 - Math.abs(t - 0.5) * 2.6);
         v['--k' + i] = (0.5 - t).toFixed(4);
-        v['--o' + i] = clampUnit(1 - Math.abs(t - 0.5) * 2.6).toFixed(3);
+        v['--o' + i] = o.toFixed(3);
         v['--f' + i] = clampUnit((t - 0.2) / 0.28).toFixed(3);
+        // 완전히 투명한 챕터는 내용 레이아웃을 건너뜀
+        v['--c' + i] = o > 0 ? 'visible' : 'hidden';
     }
     return v;
 }
@@ -123,7 +126,7 @@ function chapterVars(prog, count) {
 const BLANK_SLOTS = 0;
 const SLOT_LAST = CH_LAST + BLANK_SLOTS;
 
-// 챕터 하나당 스크롤 구간 = 영상 + 카메라 + 전환. 길이는 scrollPlan에 있다
+// 챕터 하나당 스크롤 구간 = 영상 + 카메라 + 전환. 길이는 scrollPlan에 있음
 const PLAN = buildPlan(SLOT_LAST + 1);
 const SCROLL_PX = planLength(PLAN);
 
@@ -179,7 +182,7 @@ export default function Home() {
             const s = segmentAt(PLAN, window.scrollY);
             setSeg(s);
 
-            // 텍스트는 전환 구간에서 다음 챕터로 넘어간다
+            // 텍스트는 전환 구간에서 다음 챕터로 넘어감
             const progress = s.chapter + s.wipe;
             setP3(progress / CH_LAST);
 
@@ -204,7 +207,7 @@ export default function Home() {
     const ch3 = chapterIndex;
     // 빈 슬롯에서는 이름 있는 마지막 챕터를 표시에 쓴다
     const navIdx = Math.min(CH_LAST, ch3);
-    // 진행 표시는 스크롤 위치 그대로. chapterIndex는 전환 중간에 먼저 넘어간다
+    // 진행 표시는 스크롤 위치 그대로. chapterIndex는 전환 중간에 먼저 넘어감
     const overall = (PLAN[seg.chapter].start + seg.frac * PLAN[seg.chapter].total) / SCROLL_PX;
     const pct3 = String(Math.round(overall * 100)).padStart(3, '0') + '%';
     const chapter3 = String(navIdx + 1).padStart(2, '0');
@@ -303,7 +306,7 @@ export default function Home() {
             <div style={chaptersStyle}>
 
                 {/* 01 · About */}
-                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 0 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', alignItems: 'center', opacity: 'var(--o1)' }}>
+                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 0 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', alignItems: 'center', opacity: 'var(--o1)', contentVisibility: 'var(--c1)' }}>
                     <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 62% 48%,rgba(229,100,200,.34),rgba(145,132,217,.14) 46%,rgba(23,18,43,0) 74%)', transform: 'scale(calc(1 + var(--k1) * 0.45))' }}/>
                     <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(to right,rgba(229,100,200,.07) 0 1px,transparent 1px 64px),repeating-linear-gradient(to bottom,rgba(229,100,200,.07) 0 1px,transparent 1px 64px)', animation: 'gridScroll 14s linear infinite' }}/>
                     <div style={{ position: 'relative', zIndex: '2', width: '100%' }}>
@@ -326,7 +329,7 @@ export default function Home() {
                 </div>
 
                 {/* 02 · Interest */}
-                <div className={'dh-chapter dh-interest' + (chapterIndex === 1 ? '' : ' dh-chapter-hidden')} style={{ '--accent-i': ind.color, opacity: 'var(--o2)' }}>
+                <div className={'dh-chapter dh-interest' + (chapterIndex === 1 ? '' : ' dh-chapter-hidden')} style={{ '--accent-i': ind.color, opacity: 'var(--o2)', contentVisibility: 'var(--c2)' }}>
                     <div className={"dh-int-shade"} style={{ transform: 'translateX(calc(var(--k2) * -120px))' }}/>
                     <div className="dh-int-glow2" style={{ opacity: 'var(--o2)' }}/>
 
@@ -388,7 +391,7 @@ export default function Home() {
                 </div>
 
                 {/* 03 · Projects */}
-                <div className={'dh-chapter' + (chapterIndex === 2 ? '' : ' dh-chapter-hidden')} style={{ opacity: 'var(--o3)' }}>
+                <div className={'dh-chapter' + (chapterIndex === 2 ? '' : ' dh-chapter-hidden')} style={{ opacity: 'var(--o3)', contentVisibility: 'var(--c3)' }}>
                     <div className="dh-proj-decor" style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '56%', transformOrigin: 'right center', transform: 'perspective(1400px) rotateY(calc(var(--k3) * 14deg)) translateX(calc(var(--k3) * 120px)) scale(calc(1 - var(--k3) * 0.1))' }}>
                         <div style={{ position: 'absolute', inset: 0, background: pjd.grad, transition: 'background .45s ease' }}/>
                     </div>
@@ -431,7 +434,7 @@ export default function Home() {
                 </div>
 
                 {/* 04 · Experience */}
-                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 3 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', opacity: 'var(--o4)' }}>
+                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 3 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', opacity: 'var(--o4)', contentVisibility: 'var(--c4)' }}>
                     <div style={{ position: 'absolute', right: '-80px', top: 0, bottom: 0, width: '640px', background: 'radial-gradient(ellipse at 50% 50%,rgba(145,132,217,.22),transparent 62%)', transform: 'translateX(calc(var(--k4) * 420px))' }}/>
                     <h2 style={{ font: '500 clamp(24px,5vw,42px) Inter,system-ui,sans-serif', letterSpacing: '-.03em', margin: '0 0 26px', position: 'relative', opacity: 'var(--o4)', transformOrigin: 'left center', transform: 'rotate(calc(var(--k4) * -3.2deg)) translate(calc(var(--k4) * 150px),calc(var(--k4) * 60px))' }}>04 · EXPERIENCE</h2>
                     <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -454,7 +457,7 @@ export default function Home() {
                 </div>
 
                 {/* 05 · Certifications */}
-                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 4 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', opacity: 'var(--o5)' }}>
+                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 4 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', opacity: 'var(--o5)', contentVisibility: 'var(--c5)' }}>
                     <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(to bottom,rgba(229,100,200,.06) 0 1px,transparent 1px 70px)', transform: 'perspective(1200px) rotateX(calc(var(--k5) * 22deg)) translateY(calc(var(--k5) * 220px))' }}/>
                     <h2 style={{ font: '500 clamp(24px,5vw,42px) Inter,system-ui,sans-serif', letterSpacing: '-.03em', margin: '0 0 26px', position: 'relative', opacity: 'var(--o5)', transform: 'perspective(1100px) rotateY(calc(var(--k5) * 16deg)) translateX(calc(var(--k5) * 110px))' }}>05 · CERTIFICATIONS</h2>
                     <div className="dh-grid-2" style={{ position: 'relative', opacity: 'var(--o5)', transform: 'perspective(1100px) rotateX(calc(var(--k5) * 20deg)) translateY(calc(var(--k5) * 130px))' }}>
@@ -475,7 +478,7 @@ export default function Home() {
                 </div>
 
                 {/* 06 · Education */}
-                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 5 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', opacity: 'var(--o6)' }}>
+                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 5 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', opacity: 'var(--o6)', contentVisibility: 'var(--c6)' }}>
                     <div style={{ position: 'absolute', left: '-100px', top: 0, bottom: 0, width: '600px', background: 'radial-gradient(ellipse at 50% 50%,rgba(229,100,200,.22),transparent 62%)', transform: 'translateX(calc(var(--k6) * -300px))' }}/>
                     <h2 style={{ font: '500 clamp(24px,5vw,42px) Inter,system-ui,sans-serif', letterSpacing: '-.03em', margin: '0 0 26px', position: 'relative', opacity: 'var(--o6)', transform: 'scale(calc(1 - var(--k6) * 0.14)) translateY(calc(var(--k6) * 90px))' }}>06 · EDUCATION</h2>
                     <div style={{ position: 'relative', border: '1px solid rgba(255,255,255,.12)', padding: '34px', opacity: 'var(--o6)', transform: 'scale(calc(1 - var(--k6) * 0.2)) translateY(calc(var(--k6) * 110px))' }}>
@@ -493,7 +496,7 @@ export default function Home() {
                 </div>
 
                 {/* 07 · Awards & Honors */}
-                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 6 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', opacity: 'var(--o7)' }}>
+                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 6 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', opacity: 'var(--o7)', contentVisibility: 'var(--c7)' }}>
                     <div className="dh-awards-ghost" style={{ position: 'absolute', top: '12%', left: 0, right: 0, font: '500 clamp(70px,16vw,170px)/1 Inter,system-ui,sans-serif', letterSpacing: '-.06em', whiteSpace: 'nowrap', color: 'var(--color-accent)', transform: 'translateX(calc(var(--k7) * 26%))', opacity: 'calc(.05 + var(--o7) * .09)' }}>AWARDS</div>
                     <h2 style={{ font: '500 clamp(24px,5vw,42px) Inter,system-ui,sans-serif', letterSpacing: '-.03em', margin: '0 0 26px', position: 'relative', opacity: 'var(--o7)', transform: 'translateY(calc(var(--k7) * 150px))' }}>07 · AWARDS & HONORS</h2>
                     <div className={"dh-grid-2b"} style={{ position: 'relative' }}>
@@ -521,7 +524,7 @@ export default function Home() {
                 </div>
 
                 {/* 08 · Publications */}
-                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 7 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', opacity: 'var(--o8)' }}>
+                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 7 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', opacity: 'var(--o8)', contentVisibility: 'var(--c8)' }}>
                     <h2 style={{ font: '500 clamp(24px,5vw,42px) Inter,system-ui,sans-serif', letterSpacing: '-.03em', margin: '0 0 10px', opacity: 'var(--o8)', transform: 'translateY(calc(var(--k8) * 200px))' }}>08 · PUBLICATIONS</h2>
                     <p style={{ font: '400 14.5px Inter,system-ui,sans-serif', color: 'rgba(236,233,245,.5)', margin: '0 0 26px', maxWidth: '56ch', opacity: 'var(--o8)', transform: 'translateY(calc(var(--k8) * 200px))' }}>Quae ab illo inventore veritatis quasi architecto beatae vitae dicta explicabo nemo enim ipsam voluptas aspernatur aut odit fugit.</p>
                     <div className={"dh-grid-2"} style={{ opacity: 'var(--o8)', transform: 'scale(calc(1 - var(--k8) * 0.16)) translateY(calc(var(--k8) * 140px))' }}>
@@ -538,7 +541,7 @@ export default function Home() {
                 </div>
 
                 {/* 09 · Skills */}
-                <div className={'dh-chapter dh-skills' + (chapterIndex === 8 ? '' : ' dh-chapter-hidden')} style={{ opacity: 'var(--o9)' }}>
+                <div className={'dh-chapter dh-skills' + (chapterIndex === 8 ? '' : ' dh-chapter-hidden')} style={{ opacity: 'var(--o9)', contentVisibility: 'var(--c9)' }}>
                     <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 92%,rgba(229,100,200,.28),rgba(23,18,43,0) 66%)', transform: 'translateY(calc(var(--k9) * 170px))' }}/>
                     <div style={{ position: 'relative' }}>
                         <h2 style={{ font: '500 clamp(24px,5vw,42px) Inter,system-ui,sans-serif', letterSpacing: '-.03em', margin: '0 0 24px', opacity: 'var(--o9)', transform: 'translateY(calc(var(--k9) * 120px))' }}>09 · SKILLS</h2>
@@ -567,7 +570,7 @@ export default function Home() {
                 </div>
 
                 {/* 10 · Activities */}
-                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 9 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', opacity: 'var(--o10)' }}>
+                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 9 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', opacity: 'var(--o10)', contentVisibility: 'var(--c10)' }}>
                     <h2 style={{ font: '500 clamp(24px,5vw,42px) Inter,system-ui,sans-serif', letterSpacing: '-.03em', margin: '0 0 26px', opacity: 'var(--o10)', transform: 'translate(calc(var(--k10) * 170px),calc(var(--k10) * 110px))' }}>10 · ACTIVITIES</h2>
                     <div className={"dh-grid-3"}>
                         <div style={{ border: '1px solid rgba(255,255,255,.12)', padding: '24px', transformOrigin: 'top center', transform: 'translateY(calc(var(--k10) * 300px)) rotate(calc(var(--k10) * -2.4deg))' }}>
@@ -589,7 +592,7 @@ export default function Home() {
                 </div>
 
                 {/* 11 · Contact */}
-                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 10 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', opacity: 'var(--o11)' }}>
+                <div className={'dh-chapter dh-pad-x' + (chapterIndex === 10 ? '' : ' dh-chapter-hidden')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', opacity: 'var(--o11)', contentVisibility: 'var(--c11)' }}>
                     <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 96%,rgba(229,100,200,.36),rgba(23,18,43,0) 64%)', transform: 'translateY(calc(var(--k11) * 170px))' }}/>
                     <div style={{ position: 'relative', opacity: 'var(--o11)', transform: 'scale(calc(1 - var(--k11) * 0.24)) translateY(calc(var(--k11) * 70px))' }}>
                         <div style={{ font: '500 11px ui-monospace,Menlo,monospace', letterSpacing: '.24em', color: 'rgba(236,233,245,.45)', marginBottom: '22px' }}>11 · CONTACT</div>

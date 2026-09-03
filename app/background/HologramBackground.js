@@ -5,6 +5,10 @@ import { useEffect, useRef, useState } from 'react';
 import { createFrameCamera } from './frameCamera';
 import { createGlRenderer } from './glRender';
 import { createSoftRenderer } from './softRender';
+import { effectsAt, planDraws, transitionAt } from './transitions';
+
+// 전환에서 들어오는 클립이 서는 자리
+const ORIGIN_CAM = { x: 0, y: 0, z: 0, roll: 0, yaw: 0 };
 
 // 커서가 화면 가장자리일 때 닿는 회전 한계. 화면 구도는 카메라가 잡는다
 const YAW_LIMIT = 5 * Math.PI / 180;
@@ -125,9 +129,11 @@ function has2d() {
     return !!document.createElement('canvas').getContext('2d');
 }
 
-// scroll은 scrollPlan.segmentAt이 낸 { chapter, video, camera, wipe, frac }
+// scroll은 scrollPlan.segmentAt이 낸 것
 export default function HologramBackground({ progress, scroll, onReady }) {
     const canvasRef = useRef(null);
+    const flashRef = useRef(null);
+    const raysRef = useRef(null);
     const progressRef = useRef(0);
     const scrollRef = useRef(scroll);
     const [stillSrc, setStillSrc] = useState(null);
@@ -170,6 +176,39 @@ export default function HologramBackground({ progress, scroll, onReady }) {
         let resizeObserver;
         let dirty = true;
         let fade = 0;
+        let lastScroll = null;
+
+        // 플래시와 집중선은 캔버스 밖 오버레이
+        // mix-blend-mode가 불투명도 0에서도 합성 값을 먹어서 전환이 아니면 display로 뺌
+        let fxOn = false;
+        let lastFx = '';
+        const setEffects = (flash, rays, frac) => {
+            const f = flashRef.current;
+            const r = raysRef.current;
+            if (flash < 0.002 && rays < 0.002) {
+                if (!fxOn) return;
+                fxOn = false;
+                lastFx = '';
+                if (f) f.style.display = 'none';
+                if (r) r.style.display = 'none';
+                return;
+            }
+            if (!fxOn) {
+                fxOn = true;
+                if (f) f.style.display = 'block';
+                if (r) r.style.display = 'block';
+            }
+            // 값이 그대로면 안 건드림
+            const key = flash.toFixed(3) + ' ' + rays.toFixed(3) + ' ' + frac.toFixed(2);
+            if (key === lastFx) return;
+            lastFx = key;
+            if (f) f.style.opacity = flash.toFixed(3);
+            if (r) {
+                r.style.opacity = rays.toFixed(3);
+                // 전환이 진행될수록 조금 벌어짐
+                r.style.transform = 'scale(' + (1 + frac * 0.18).toFixed(3) + ')';
+            }
+        };
 
         const look = { yaw: 0, pitch: 0, tYaw: 0, tPitch: 0, tracking: false };
 
@@ -263,16 +302,17 @@ export default function HologramBackground({ progress, scroll, onReady }) {
             const segs = meta.chapters;
             const last = segs ? segs.length - 1 : 0;
 
-            // 영상 구간에서만 프레임이 나가고, 카메라와 전환 구간은 마지막 프레임에 멈춘다
+            // 지금 나가고 있는 클립의 프레임. 카메라 구간은 마지막 프레임에 멈춤
+            // 전환 구간에서는 들어오는 클립이 계속 진행함
             const frameAt = () => {
                 if (!segs) {
                     const p = Math.max(0, Math.min(1, progressRef.current));
                     return Math.round(p * (meta.frames - 1));
                 }
                 const s = scrollRef.current;
-                const seg = segs[Math.min(last, s.chapter)];
+                const seg = segs[Math.min(last, s.clip)];
                 const span = Math.max(1, seg.out - seg.in - 1);
-                return seg.in + Math.round(s.video * span);
+                return seg.in + Math.round(s.play * span);
             };
 
             cpNow = () => {
@@ -283,14 +323,53 @@ export default function HologramBackground({ progress, scroll, onReady }) {
             const step = meta.duration / meta.frames;
             let lastSeek = -1;
 
+            // 전환 중인 챕터와 정지 텍스처 확보 여부
+            const wipe = { ch: -1, ready: false };
+
+            // 마지막 챕터는 넘어갈 데가 없어서 전환이 없음
+            const wipeNow = () => {
+                const s = scrollRef.current;
+                if (!segs || !engine.renderDraws || s.chapter >= last || s.wipe <= 0) return null;
+                return s;
+            };
+
+            // 정지 텍스처를 못 잡았으면 잡을 수 있는 프레임으로 먼저 감
+            const seekFrame = () => {
+                const s = wipeNow();
+                if (s && !(wipe.ch === s.chapter && wipe.ready)) return segs[s.chapter].out - 1;
+                return frameAt();
+            };
+
+            // 전환에 들어서는 순간 잡음. 프레임이 안 맞으면 다음 루프에서 다시
+            // 전환을 벗어나도 버리지 않고, 같은 챕터면 다시 안 잡음
+            const grabStill = () => {
+                const s = wipeNow();
+                if (!s || wipe.ch === s.chapter) return;
+                const want = (segs[s.chapter].out - 1) * step;
+                if (video.seeking || Math.abs(video.currentTime - want) > step * 0.75) return;
+                wipe.ready = engine.captureStill(video);
+                wipe.ch = s.chapter;
+                dirty = true;
+            };
+
             const loop = () => {
                 if (!mounted) return;
                 raf = requestAnimationFrame(loop);
                 if (document.hidden) return;
 
+                // 전환 중에만 스크롤마다 다시 그림. 그 밖에는 seeked가 세움
+                const sc = scrollRef.current;
+                if (sc !== lastScroll) {
+                    // 막 벗어난 프레임도 그림. 프레임이 같아 seek이 안 걸림
+                    const was = lastScroll && lastScroll.wipe > 0;
+                    lastScroll = sc;
+                    if (sc.wipe > 0 || was) dirty = true;
+                }
+
                 // 스크롤 진행도를 프레임 위치로, 반프레임 넘게 움직였을 때만 탐색
                 if (video && video.readyState >= 2) {
-                    const t = frameAt() * step;
+                    grabStill();
+                    const t = seekFrame() * step;
                     if (Math.abs(t - lastSeek) > step * 0.5) {
                         lastSeek = t;
                         video.currentTime = t;
@@ -332,6 +411,19 @@ export default function HologramBackground({ progress, scroll, onReady }) {
                 // 아무것도 안 변했으면 안 그림
                 if (!dirty) return;
                 dirty = false;
+
+                // 전환 구간이면 나가는 쪽은 지금 자세, 들어오는 쪽은 원점
+                const s = wipeNow();
+                if (s && wipe.ch === s.chapter && wipe.ready) {
+                    const def = transitionAt(s.chapter);
+                    const fx = effectsAt(def, s.wipe);
+                    setEffects(fx.flash, fx.rays, s.wipe);
+                    if (engine.renderDraws(look.yaw, look.pitch, fade,
+                        planDraws(def, s.wipe, cam, ORIGIN_CAM))) {
+                        return;
+                    }
+                }
+                setEffects(0, 0, 0);
                 engine.render(look.yaw + cam.yaw, look.pitch, fade, cam);
             };
             loop();
@@ -389,7 +481,11 @@ export default function HologramBackground({ progress, scroll, onReady }) {
         <>
             {stillSrc
                 ? <div className="dh-bg-still" style={{ backgroundImage: 'url(' + stillSrc + ')' }}/>
-                : <canvas ref={canvasRef} className="dh-bg-canvas"/>}
+                : <>
+                    <canvas ref={canvasRef} className="dh-bg-canvas"/>
+                    <div ref={raysRef} className="dh-bg-rays"/>
+                    <div ref={flashRef} className="dh-bg-flash"/>
+                </>}
             {notice ? (
                 <div className="dh-gpu-notice">
                     <span className="dh-gpu-notice-mark"/>
