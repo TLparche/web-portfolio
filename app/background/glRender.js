@@ -5,6 +5,13 @@ const CAM_DIST = 3.2;
 // 16:9에서 yaw 12도(커서 5 + 스윙 7) 기준. yaw 예산을 늘리면 이 값도 올려야 한다
 const OVERSCAN = 1.22;
 
+// 배경 트랙이 따로 없는 에셋에서 근경과 원경을 가르는 깊이. 근경만 점구름이 된다.
+// src79 전체 프레임 깊이 분포로 잡은 값 (깊이 > 0.45 가 약 22%, split.py 의 25%와 비슷)
+const SPLIT = [0.35, 0.55];
+
+// 배경 트랙이 없는 에셋에 평면 레이어를 깔지. 끄면 프레임 전체가 예전처럼 점구름이 된다
+const CROSSFADE = false;
+
 const VERTEX_SHADER = [
     'attribute vec2 aGrid;',
     'uniform sampler2D uTex;',
@@ -17,6 +24,7 @@ const VERTEX_SHADER = [
     'uniform float uDepth;',
     'uniform float uSize;',
     'uniform float uPixelRatio;',
+    'uniform vec2 uSplit;',
     'varying vec3 vColor;',
     'varying float vAlpha;',
     'float depthAt(vec2 g){ return texture2D(uTex, uDepthXf.xy + g * uDepthXf.zw).r; }',
@@ -39,6 +47,10 @@ const VERTEX_SHADER = [
     '#endif',
     '  vAlpha *= smoothstep(uDepthGate.x, uDepthGate.y, d);',
     '  vAlpha *= smoothstep(uLumaGate.x, uLumaGate.y, dot(vColor, vec3(0.299, 0.587, 0.114)));',
+    '#ifdef SPLIT_MATTE',
+    // 원경은 평면 레이어가 선명하게 맡는다. 평면 알파와 정확히 상보적이어야 겹치지 않는다
+    '  vAlpha *= smoothstep(uSplit.x, uSplit.y, d);',
+    '#endif',
     '  if (vAlpha < 0.004) {',
     '    gl_PointSize = 0.0;',
     '    gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
@@ -84,6 +96,24 @@ const BACK_FRAGMENT = [
     'void main(){',
     '  vec2 uv = (vUv - 0.5) * uCover + 0.5;',
     '  gl_FragColor = vec4(texture2D(uTex, uBackXf.xy + uv * uBackXf.zw).rgb, uFade);',
+    '}',
+].join('\n');
+
+// 배경 트랙이 없을 때. 컬러 영역을 평면으로 깔고 근경만 투과시켜 점구름에 넘긴다
+const FLAT_FRAGMENT = [
+    'precision highp float;',
+    'uniform sampler2D uTex;',
+    'uniform vec4 uColorXf;',
+    'uniform vec4 uDepthXf;',
+    'uniform vec2 uSplit;',
+    'uniform vec2 uCover;',
+    'uniform float uFade;',
+    'varying vec2 vUv;',
+    'void main(){',
+    '  vec2 uv = (vUv - 0.5) * uCover + 0.5;',
+    '  vec3 c = texture2D(uTex, uColorXf.xy + uv * uColorXf.zw).rgb;',
+    '  float d = texture2D(uTex, uDepthXf.xy + uv * uDepthXf.zw).r;',
+    '  gl_FragColor = vec4(c, (1.0 - smoothstep(uSplit.x, uSplit.y, d)) * uFade);',
     '}',
 ].join('\n');
 
@@ -143,12 +173,15 @@ export function createGlRenderer(THREE, canvas, meta, tier) {
         uLumaGate: { value: new THREE.Vector2(...(layered ? [0.0, 0.04] : [0.02, 0.12])) },
         uAspect: { value: aspect },
         uDepth: { value: 0.85 },
+        uSplit: { value: new THREE.Vector2(...SPLIT) },
         uSize: { value: tier.size },
         uPixelRatio: { value: renderer.getPixelRatio() },
         uFade: { value: 0 },
     };
+    const pointDefines = tier.edge ? { EDGE_MASK: '' } : {};
+    if (!layered && CROSSFADE) pointDefines.SPLIT_MATTE = '';
     const mat = new THREE.ShaderMaterial({
-        defines: tier.edge ? { EDGE_MASK: '' } : {},
+        defines: pointDefines,
         uniforms,
         vertexShader: VERTEX_SHADER,
         fragmentShader: FRAGMENT_SHADER,
@@ -161,29 +194,40 @@ export function createGlRenderer(THREE, canvas, meta, tier) {
     group.add(new THREE.Points(geo, mat));
     scene.add(group);
 
-    // 고정 배경. 회전 그룹 밖에서 클립 공간에 바로 그린다
-    let backScene = null;
+    // 평면 레이어. 회전 그룹 밖에서 클립 공간에 바로 그린다
+    // 배경 트랙이 있으면 그 영역을, 없으면 컬러 영역을 깔고 근경만 투과시킨다
+    const useFlat = layered || CROSSFADE;
     let backCam = null;
     let backMat = null;
-    if (layered) {
-        backCam = new THREE.Camera();
-        backMat = new THREE.ShaderMaterial({
-            uniforms: {
+    let backScene = null;
+    if (useFlat) {
+    backCam = new THREE.Camera();
+    backMat = new THREE.ShaderMaterial({
+        uniforms: layered
+            ? {
                 uTex: uniforms.uTex,
                 uBackXf: { value: new THREE.Vector4(...xform(meta.backRect, frameW, frameH)) },
                 uCover: { value: new THREE.Vector2(1, 1) },
                 uFade: uniforms.uFade,
+            }
+            : {
+                uTex: uniforms.uTex,
+                uColorXf: uniforms.uColorXf,
+                uDepthXf: uniforms.uDepthXf,
+                uSplit: uniforms.uSplit,
+                uCover: { value: new THREE.Vector2(1, 1) },
+                uFade: uniforms.uFade,
             },
-            vertexShader: BACK_VERTEX,
-            fragmentShader: BACK_FRAGMENT,
-            transparent: true,
-            depthTest: false,
-            depthWrite: false,
-        });
-        const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), backMat);
-        quad.frustumCulled = false;
-        backScene = new THREE.Scene();
-        backScene.add(quad);
+        vertexShader: BACK_VERTEX,
+        fragmentShader: layered ? BACK_FRAGMENT : FLAT_FRAGMENT,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+    });
+    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), backMat);
+    quad.frustumCulled = false;
+    backScene = new THREE.Scene();
+    backScene.add(quad);
     }
 
     let texture = null;

@@ -17,7 +17,7 @@
     --font-mono: ui-monospace, Menlo, monospace;
 
     /* 배경을 뒤로 눌러 본문 가독성을 지킨다. 밝은 소스일수록 낮게 */
-    --dh-bg-dim: 0.45;
+    --dh-bg-dim: 0.55;
 }
 
 * {

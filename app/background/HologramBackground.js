@@ -37,9 +37,20 @@ const SOFT_GRID = [240, 135];
 // 에셋을 여러 개 두고 고를 때. pack.py --name 으로 만든 매니페스트 이름을 넣는다
 const MANIFEST = process.env.NEXT_PUBLIC_BG_MANIFEST || 'bg.json';
 
+// ?bg=... 로 에셋을 갈아끼운다. 재시작 없이 비교하려고 둔 것이고, 없으면 환경변수 값
+// 같은 오리진의 /bg/ 아래만 읽게 경로 문자를 제한한다
+function pickManifest() {
+    if (typeof location === 'undefined') return MANIFEST;
+    const q = new URLSearchParams(location.search).get('bg');
+    if (!q || q.includes('..') || !/^[\w./-]+\.json$/.test(q)) return MANIFEST;
+    return q;
+}
+
 // 매니페스트가 하위 폴더에 있으면 영상과 이미지도 같은 폴더에서 찾는다.
 // 저작권 때문에 못 올리는 실험용 에셋을 test/ 같은 데 몰아넣고 골라 쓰기 위한 것
-const ASSET_DIR = MANIFEST.slice(0, MANIFEST.lastIndexOf('/') + 1);
+function assetDir(name) {
+    return name.slice(0, name.lastIndexOf('/') + 1);
+}
 
 // WebGL 유무, 정점 텍스처 유닛, 소프트웨어 렌더러 확인
 function probeGL() {
@@ -128,6 +139,8 @@ export default function HologramBackground({ progress, chapterProgress, onReady 
 
     useEffect(() => {
         const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
+        const manifest = pickManifest();
+        const dir = assetDir(manifest);
         let mounted = true;
 
         // 못 그리는 기기와 reduced-motion은 정지 이미지로
@@ -141,9 +154,9 @@ export default function HologramBackground({ progress, chapterProgress, onReady 
         }
 
         if (reduced || (!gl.ok && !soft)) {
-            fetch(base + '/bg/' + MANIFEST).then((r) => r.json()).then((meta) => {
+            fetch(base + '/bg/' + manifest).then((r) => r.json()).then((meta) => {
                 if (!mounted) return;
-                setStillSrc(base + '/bg/' + ASSET_DIR + meta.still);
+                setStillSrc(base + '/bg/' + dir + meta.still);
                 if (onReady) onReady();
             });
             return () => { mounted = false; };
@@ -210,7 +223,7 @@ export default function HologramBackground({ progress, chapterProgress, onReady 
             dirty = true;
         };
 
-        fetch(base + '/bg/' + MANIFEST).then((r) => r.json()).then(async (meta) => {
+        fetch(base + '/bg/' + manifest).then((r) => r.json()).then(async (meta) => {
             if (!mounted) return;
 
             if (gl.ok) {
@@ -235,7 +248,7 @@ export default function HologramBackground({ progress, chapterProgress, onReady 
 
             // 포스터로 먼저 그리고, 영상 준비되면 갈아끼움
             const poster = new Image();
-            poster.src = base + '/bg/' + ASSET_DIR + meta.poster;
+            poster.src = base + '/bg/' + dir + meta.poster;
             poster.decoding = 'sync';
             poster.onload = () => {
                 if (!mounted) return;
@@ -323,7 +336,7 @@ export default function HologramBackground({ progress, chapterProgress, onReady 
 
         function startVideo(meta) {
             video = document.createElement('video');
-            video.src = base + '/bg/' + ASSET_DIR + meta.video;
+            video.src = base + '/bg/' + dir + meta.video;
             video.muted = true;
             video.playsInline = true;
             video.preload = 'auto';
