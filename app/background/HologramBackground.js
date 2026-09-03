@@ -125,17 +125,18 @@ function has2d() {
     return !!document.createElement('canvas').getContext('2d');
 }
 
-export default function HologramBackground({ progress, chapterProgress, onReady }) {
+// scroll은 scrollPlan.segmentAt이 낸 { chapter, video, camera, wipe, frac }
+export default function HologramBackground({ progress, scroll, onReady }) {
     const canvasRef = useRef(null);
     const progressRef = useRef(0);
-    const chapterRef = useRef(0);
+    const scrollRef = useRef(scroll);
     const [stillSrc, setStillSrc] = useState(null);
     const [notice, setNotice] = useState(null);
 
     useEffect(() => {
         progressRef.current = progress;
-        chapterRef.current = chapterProgress || 0;
-    }, [progress, chapterProgress]);
+        scrollRef.current = scroll;
+    }, [progress, scroll]);
 
     useEffect(() => {
         const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
@@ -262,20 +263,22 @@ export default function HologramBackground({ progress, chapterProgress, onReady 
             const segs = meta.chapters;
             const last = segs ? segs.length - 1 : 0;
 
-            // 챕터 구간이 있으면 슬롯 하나가 그 챕터 클립 전체를 재생함
+            // 영상 구간에서만 프레임이 나가고, 카메라와 전환 구간은 마지막 프레임에 멈춘다
             const frameAt = () => {
                 if (!segs) {
                     const p = Math.max(0, Math.min(1, progressRef.current));
                     return Math.round(p * (meta.frames - 1));
                 }
-                const cp = Math.max(0, Math.min(last + 0.999, chapterRef.current));
-                const ch = Math.min(last, Math.floor(cp));
-                const seg = segs[ch];
+                const s = scrollRef.current;
+                const seg = segs[Math.min(last, s.chapter)];
                 const span = Math.max(1, seg.out - seg.in - 1);
-                return seg.in + Math.round((cp - ch) * span);
+                return seg.in + Math.round(s.video * span);
             };
 
-            cpNow = () => Math.max(0, Math.min(last + 0.999, chapterRef.current));
+            cpNow = () => {
+                const s = scrollRef.current;
+                return Math.min(last + 0.999, s.chapter + s.frac);
+            };
 
             const step = meta.duration / meta.frames;
             let lastSeek = -1;

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import HologramBackground from './background/HologramBackground';
 import Landing from './Landing';
+import { buildPlan, planLength, segmentAt } from './scrollPlan';
 
 const CH_NAMES = [
     'ABOUT', 'INTEREST', 'PROJECTS', 'EXPERIENCE', 'CERTIFICATIONS', 'EDUCATION',
@@ -117,15 +118,14 @@ function chapterVars(prog, count) {
     return v;
 }
 
-// 챕터 하나당 스크롤 구간 = 고정 900 + 전환 500
-const HOLD_PX = 900;
-const TRANSITION_PX = 500;
-const SLOT_PX = HOLD_PX + TRANSITION_PX;
-
 // 임시: 배경 영상을 끝까지 보려고 마지막 챕터 뒤에 빈 슬롯을 붙였음.
 // bg.json의 chapters 개수와 CH_COUNT + BLANK_SLOTS가 같아야 한다.
 const BLANK_SLOTS = 0;
 const SLOT_LAST = CH_LAST + BLANK_SLOTS;
+
+// 챕터 하나당 스크롤 구간 = 영상 + 카메라 + 전환. 길이는 scrollPlan에 있다
+const PLAN = buildPlan(SLOT_LAST + 1);
+const SCROLL_PX = planLength(PLAN);
 
 export default function Home() {
     const intCloseTimerRef = useRef(null);
@@ -137,10 +137,9 @@ export default function Home() {
     const [interest, setInterest] = useState(0);
     const [interestOpen, setInterestOpen] = useState(false);
     const [chapterIndex, setChapterIndex] = useState(0);
-    const [holdFraction, setHoldFraction] = useState(0);
     const [viewportH, setViewportH] = useState(0);
     const [bgReady, setBgReady] = useState(false);
-    const [slotProgress, setSlotProgress] = useState(0);
+    const [seg, setSeg] = useState(() => segmentAt(PLAN, 0));
 
     // 플레이트에서 why 패널로 넘어갈 때 깜빡여서 닫는 쪽만 딜레이
     const openInterest = useCallback(() => {
@@ -163,7 +162,7 @@ export default function Home() {
     }, []);
 
     const goToChapter = useCallback((i) => {
-        glide(i * SLOT_PX);
+        glide(PLAN[i].start);
     }, [glide]);
 
     const prevCh = useCallback(() => {
@@ -177,15 +176,11 @@ export default function Home() {
     // 스크롤 위치에서 진행도 바로 계산, 애니메이션 루프 안 씀
     useEffect(() => {
         const onScroll = () => {
-            const y = window.scrollY;
-            const slot = Math.min(SLOT_LAST, Math.max(0, Math.floor(y / SLOT_PX)));
-            const within = y - slot * SLOT_PX;
-            const transitionFrac = Math.min(1, Math.max(0, (within - HOLD_PX) / TRANSITION_PX));
-            const progress = Math.min(SLOT_LAST, slot + transitionFrac);
+            const s = segmentAt(PLAN, window.scrollY);
+            setSeg(s);
 
-            const hf = Math.min(1, Math.max(0, within / SLOT_PX));
-            setHoldFraction(hf);
-            setSlotProgress(slot + hf);
+            // 텍스트는 전환 구간에서 다음 챕터로 넘어간다
+            const progress = s.chapter + s.wipe;
             setP3(progress / CH_LAST);
 
             const idx = Math.min(SLOT_LAST, Math.round(progress));
@@ -209,7 +204,9 @@ export default function Home() {
     const ch3 = chapterIndex;
     // 빈 슬롯에서는 이름 있는 마지막 챕터를 표시에 쓴다
     const navIdx = Math.min(CH_LAST, ch3);
-    const pct3 = String(Math.round(((chapterIndex + holdFraction) / SLOT_LAST) * 100)).padStart(3, '0') + '%';
+    // 진행 표시는 스크롤 위치 그대로. chapterIndex는 전환 중간에 먼저 넘어간다
+    const overall = (PLAN[seg.chapter].start + seg.frac * PLAN[seg.chapter].total) / SCROLL_PX;
+    const pct3 = String(Math.round(overall * 100)).padStart(3, '0') + '%';
     const chapter3 = String(navIdx + 1).padStart(2, '0');
     const chapterName3 = CH_NAMES[navIdx];
     const chapterVarsObj = chapterVars(p3, CH_COUNT);
@@ -249,7 +246,7 @@ export default function Home() {
 
     const progress3Style = {
         position: 'absolute', top: 0, left: 0, width: '100%',
-        height: (((chapterIndex + holdFraction) / SLOT_LAST) * 100).toFixed(2) + '%',
+        height: (overall * 100).toFixed(2) + '%',
         background: 'linear-gradient(var(--color-accent),var(--color-accent-2))',
         boxShadow: '0 0 12px var(--color-accent)',
         transition: 'height .12s linear',
@@ -268,9 +265,9 @@ export default function Home() {
             <Landing ready={bgReady}/>
 
             {/* 챕터가 전부 fixed라 스크롤 높이는 이걸로 만듦 */}
-            <div style={{ height: SLOT_LAST * SLOT_PX + HOLD_PX + viewportH }}/>
+            <div style={{ height: SCROLL_PX + viewportH }}/>
 
-            <HologramBackground progress={p3} chapterProgress={slotProgress} onReady={() => setBgReady(true)}/>
+            <HologramBackground progress={p3} scroll={seg} onReady={() => setBgReady(true)}/>
 
             <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 5, background: 'repeating-linear-gradient(to bottom,rgba(255,255,255,.03) 0 1px,transparent 1px 3px)', mixBlendMode: 'overlay' }}/>
 
