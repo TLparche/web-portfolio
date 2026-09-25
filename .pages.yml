@@ -56,7 +56,7 @@ components:
       - name: scale
         label: 확대 배율
         type: number
-        options: { min: 0.1, max: 6 }
+        options: { min: 0.1, max: 6, step: any }
   artwork:
     type: object
     fields:
