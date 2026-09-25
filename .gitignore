@@ -152,3 +152,5 @@ __pycache__/
 # 배포할 수 없는 배경 에셋은 전부 여기. 남의 영상으로 만든 실험용 변형이 들어간다.
 # public/bg 바로 아래의 bg.* 는 저작권 없는 합성 배경(make_placeholder.py)이라 추적한다.
 public/bg/test/
+output/
+.playwright-cli/
