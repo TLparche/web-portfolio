@@ -56,7 +56,9 @@ components:
       - name: scale
         label: 확대 배율
         type: number
+        readonly: true
         options: { min: 0.1, max: 6, step: any }
+        description: 현재 화면 구성을 유지하는 고정 배율입니다.
   artwork:
     type: object
     fields:
