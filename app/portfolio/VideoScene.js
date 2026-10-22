@@ -57,7 +57,7 @@ void main(){
   gl_FragColor=vec4(color,vAlpha*(1.-smoothstep(.3,.5,radius)));
 }`;
 
-function Background({sections,tracks,timeline,progress,selection,paused,occluded,onReady,onFailure}) {
+function Background({sections,tracks,timeline,progress,selection,paused,occluded=false,onReady,onFailure}) {
   const {gl,invalidate,setFrameloop,size}=useThree();
   const media=useRef(null), surface=useRef(null), dust=useRef(null), ready=useRef(false), frames=useRef(0);
   const latest=useRef({selection,paused,occluded});latest.current={selection,paused,occluded};
@@ -91,7 +91,9 @@ function Background({sections,tracks,timeline,progress,selection,paused,occluded
     const inSection=chosen?.sectionId===sections[state.index]?.id && state.transition===0;
     if(!major)mixer.select(inSection?chosen:null);
     if(!mixer.render(performance.now(),major))return;
-    const dissolve=state.effect==='dissolve'?state.transition:0;
+    // Chapter dissolution belongs to the complete DOM surface. The shared video
+    // keeps its continuous scroll clock instead of running a second, unrelated wipe.
+    const dissolve=0;
     // Fiber 9 preserves its own uniform entries; update the mounted materials.
     for(const object of [surface.current,dust.current]) {
       const u=object.material.uniforms;

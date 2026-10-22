@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { ContentReveal } from './SceneArt';
 import styles from './EvidenceScenes.module.css';
 
-function HeadingBlock({ section, Heading, chapter, compact }) {
-  if(compact) return <header className={styles.compactHeading}><h3 id={`${section.id}-content-title`}>{section.title}</h3><p>{section.body}</p></header>;
+function HeadingBlock({ section, Heading, chapter }) {
   return <header className={styles.heading} data-enter="title"><div className={styles.chapter}><span>{chapter}</span><span>{section.title}</span></div><Heading id={`${section.id}-title`}>{section.display}</Heading><strong>{section.headline}</strong><p>{section.body}</p></header>;
 }
 
@@ -24,50 +23,67 @@ export function ExperiencePanel({ section, Heading, chapter, onDetail }) {
   </div>;
 }
 
-export function CredentialsPanel({ section, Heading, chapter, compact=false }) {
-  return <div className={styles.credentials} data-copy data-evidence="credentials" data-compact={compact}>
-    <HeadingBlock section={section} Heading={Heading} chapter={chapter} compact={compact}/>
-    <div className={styles.credentialsDeck}>
-      {section.groups?.map((group, index) => <section key={group.title} className={styles.certificate} data-enter={index % 2 ? 'diagonal-right' : 'diagonal-left'}>
-        <header><h3>{group.title}</h3></header>
-        <ul>{group.items.map(item => <li key={item.id}><div><h4>{item.title}</h4><p>{item.description}</p></div><span className={styles.badge}>{item.badge}</span></li>)}</ul>
-      </section>)}
-      {!section.groups?.length && <p className={styles.empty}>자격 정보를 준비하고 있습니다.</p>}
+function EvidenceSymbol({ kind }) {
+  return <svg viewBox="0 0 240 240" fill="none" aria-hidden="true" className={styles.evidenceSymbol}>
+    <path className={styles.symbolFrame} d="M30 76V30h46M164 30h46v46M210 164v46h-46M76 210H30v-46"/>
+    <circle className={styles.symbolOrbit} cx="120" cy="120" r="94"/>
+    {kind==='education' ? <><path d="m42 102 78-39 78 39-78 39-78-39Z"/><path d="M66 117v45l54 27 54-27v-45M120 141v48M198 102v58"/><path className={styles.symbolAccent} d="m75 83 45-23 45 23-45 23-45-23Z"/></> :
+      kind==='credentials' ? <><path d="M66 40h108v151H66V40ZM88 70h63M88 91h45"/><circle cx="120" cy="133" r="24"/><path d="m102 151-9 54 27-16 27 16-9-54"/><path className={styles.symbolAccent} d="m108 132 9 9 18-21"/></> :
+      kind==='awards' ? <><path d="m120 51 21 43 48 7-35 34 8 48-42-23-42 23 8-48-35-34 48-7 21-43Z"/><path className={styles.symbolAccent} d="M52 156c10 33 34 50 68 52 34-2 58-19 68-52M41 129l14 17M185 146l14-17"/></> :
+      <><path d="m89 74-46 46 46 46M151 74l46 46-46 46M138 58l-36 124"/><path className={styles.symbolAccent} d="M72 43h96M72 197h96"/></>}
+  </svg>;
+}
+
+const proficiency = item => `숙련도 ${Number.isFinite(item.level) ? `${Math.max(0,Math.min(100,item.level))}%` : '입력 전'}`;
+
+function RecordDetails({ item, skills }) {
+  return <>{item.group && <span className={styles.recordGroup}>{item.group}</span>}<h4>{item.title}</h4>{item.period && <p>{item.period}</p>}<p>{item.description}</p>{item.detail && <p>{item.detail}</p>}
+    {item.bullets?.length > 0 && <ul>{item.bullets.map(text=><li key={text}>{text}</li>)}</ul>}
+    {skills ? <span className={styles.recordStatus}>{proficiency(item)}</span> : item.badge && <span className={styles.recordStatus}>{item.badge}</span>}
+    {item.links?.filter(link=>link.url).map(link=><a key={link.url} href={link.url}>{link.label} <span aria-hidden="true">↗</span></a>)}
+  </>;
+}
+
+function EvidenceRecords({ section, Heading, chapter, compact=false }) {
+  const records = section.groups?.flatMap(group=>group.items.map(item=>({...item,group:group.title}))) || section.items || [];
+  const [selected,setSelected] = useState(records[0]?.id);
+  const [instant,setInstant] = useState(false);
+  const current = records.find(item=>item.id===selected) || records[0];
+  const skills = section.kind==='skills';
+  const select = (item,event) => {setSelected(item.id);setInstant(event.detail===0);};
+  return <div className={styles.recordScene} data-copy data-evidence={section.kind} data-compact={compact}>
+    <header className={styles.recordIdentity}>
+      {!compact && <div className={styles.chapter}><span>{chapter}</span><Heading id={`${section.id}-title`}>{section.title}</Heading></div>}
+      <h3 id={`${section.id}-content-title`} className={styles.recordTitle}>{section.title}</h3>
+      <div className={styles.symbolField}><EvidenceSymbol kind={section.kind}/></div>
+      <strong className={styles.recordHeadline}>{section.headline}</strong>
+      <p className={styles.recordIntro}>{section.body}</p>
+      <span className={styles.identityRule} aria-hidden="true"/>
+    </header>
+    <div className={styles.recordContent} data-scene-scroll>
+      <section className={styles.recordIndex} data-record-list aria-label={`${section.title} 기록`}>
+        <div className={styles.recordColumns} aria-hidden="true" data-skills={skills}>
+          {skills ? <><span>분야</span><span>도구</span><span>숙련도</span></> : <><span>기간</span><span>기관</span><span>명칭</span></>}
+        </div>
+        <div className={styles.recordRows}>
+          {records.map(item=><button key={item.id} className={styles.recordRow} data-record-id={item.id} data-skills={skills} aria-pressed={item.id===current?.id} aria-controls={`${section.id}-record-detail`} onClick={event=>select(item,event)}>
+            {skills ? <><strong>{item.title}</strong><span className={styles.recordTools}>{item.description}</span><span className={styles.recordPeriod}>{proficiency(item)}</span></> : <><span className={styles.recordPeriod}>{item.period || item.date || item.year || '입력 전'}</span><span className={styles.recordOrganization}>{item.organization || item.institution || item.issuer || '입력 전'}</span><strong>{item.title}</strong></>}
+            <span className={styles.recordSelected} aria-hidden="true">{item.id===current?.id?'✓':'+'}</span>
+          </button>)}
+          {!records.length && <p className={styles.empty}>기록을 준비하고 있습니다.</p>}
+        </div>
+      </section>
+      {current && <article id={`${section.id}-record-detail`} className={styles.recordDetail} data-record-detail={current.id} aria-live="polite" aria-atomic="true">
+        <ContentReveal value={current.id} instant={instant}><RecordDetails item={current} skills={skills}/></ContentReveal>
+      </article>}
+      {section.stats?.length > 0 && <dl className={styles.recordStats}>{section.stats.map(stat=><div key={stat.label}><dt>{stat.label}</dt><dd>{stat.value}<small>{stat.suffix}</small></dd></div>)}</dl>}
+      {section.toolbox?.length > 0 && <section className={styles.recordToolbox}><h4>사용 도구</h4><ul>{section.toolbox.map(tool=><li key={tool}>{tool}</li>)}</ul></section>}
     </div>
+    <noscript><style>{'[data-evidence] [data-record-detail],[data-evidence] [data-record-list]{display:none!important}'}</style><div className={styles.staticRecords} data-evidence-static>{records.map(item=><article key={item.id}><RecordDetails item={item} skills={skills}/></article>)}</div></noscript>
   </div>;
 }
 
-export function EducationPanel({ section, Heading, chapter, compact=false }) {
-  return <div className={styles.education} data-copy data-evidence="education" data-compact={compact}>
-    <HeadingBlock section={section} Heading={Heading} chapter={chapter} compact={compact}/>
-    <div className={styles.studyBook}>
-      <div className={styles.schoolPage} data-enter="book-left">
-        {section.items.map(item => <article key={item.id}><span className={styles.noteLabel}>{item.tag}</span><h3>{item.title}</h3><p className={styles.period}>{item.period}</p><p>{item.description}</p></article>)}
-        {!section.items.length && <p className={styles.empty}>교육 과정을 준비하고 있습니다.</p>}
-      </div>
-      <div className={styles.scoresPage} data-enter="book-right"><span className={styles.noteLabel}>학업 기록</span><dl>{section.stats?.map(stat => <div key={stat.label}><dt>{stat.label}</dt><dd>{stat.value}<small>{stat.suffix}</small></dd></div>)}</dl></div>
-    </div>
-  </div>;
-}
-
-export function AwardsPanel({ section, Heading, chapter, compact=false }) {
-  const records = section.groups?.flatMap(group => group.items) || [];
-  const [selected, setSelected] = useState(records[0]?.id);
-  const [instant, setInstant] = useState(false);
-  const current = records.find(item => item.id === selected) || records[0];
-  const category = section.groups?.find(group => group.items.includes(current));
-  return <div className={styles.awards} data-copy data-evidence="awards" data-compact={compact}>
-    <HeadingBlock section={section} Heading={Heading} chapter={chapter} compact={compact}/>
-    {current ? <article className={styles.awardFeature} data-enter="award"><ContentReveal value={current.id} instant={instant}><span className={styles.noteLabel}>{category?.title}</span><h3>{current.title}</h3><p>{current.description}</p><span className={styles.badge}>{current.badge}</span>{current.detail && <p>{current.detail}</p>}{current.links?.filter(link => link.url).map(link => <a key={link.url} href={link.url}>{link.label} ↗</a>)}</ContentReveal></article> : <p className={styles.empty}>수상 기록을 준비하고 있습니다.</p>}
-    <div className={styles.honors} data-enter="diagonal-right">{section.groups?.map(group => <section key={group.title}><h3>{group.title}</h3><div>{group.items.map(item => <button key={item.id} aria-pressed={item === current} onClick={event => {setSelected(item.id);setInstant(event.detail === 0);}}><span><strong>{item.title}</strong><small>{item.description}</small></span><span className={styles.badge}>{item.badge}</span></button>)}</div></section>)}</div>
-    <noscript><div className={styles.staticRecords}>{records.filter(item=>item.detail || item.links?.some(link=>link.url)).map(item=><article key={item.id}><h3>{item.title}</h3>{item.detail && <p>{item.detail}</p>}{item.links?.filter(link=>link.url).map(link=><a key={link.url} href={link.url}>{link.label}</a>)}</article>)}</div></noscript>
-  </div>;
-}
-
-export function SkillRecordsPanel({ section, Heading, chapter, compact=false }) {
-  return <div className={styles.skills} data-copy data-evidence="skills" data-compact={compact}>
-    <HeadingBlock section={section} Heading={Heading} chapter={chapter} compact={compact}/>
-    <dl className={styles.skillList}>{section.items.map(item=><div key={item.id}><dt>{item.title}</dt><dd><p>{item.description}</p>{item.detail && <p>{item.detail}</p>}<span className={styles.skillLevel}>숙련도 {Number.isFinite(item.level) ? `${Math.max(0,Math.min(100,item.level))}%` : '입력 전'}</span>{item.links?.filter(link=>link.url).map(link=><a key={link.url} href={link.url}>{link.label}</a>)}</dd></div>)}</dl>
-    {section.toolbox?.length > 0 && <section className={styles.toolbox}><h3>사용 도구</h3><ul>{section.toolbox.map(tool=><li key={tool}>{tool}</li>)}</ul></section>}
-  </div>;
-}
+export function CredentialsPanel(props) { return <EvidenceRecords {...props}/>; }
+export function EducationPanel(props) { return <EvidenceRecords {...props}/>; }
+export function AwardsPanel(props) { return <EvidenceRecords {...props}/>; }
+export function SkillRecordsPanel(props) { return <EvidenceRecords {...props}/>; }

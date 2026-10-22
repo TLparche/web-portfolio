@@ -9,13 +9,13 @@ export function videoFrameTime(progress, duration, fps = 30) {
   return Math.min(last, Math.floor(clamp(Number.isFinite(progress) ? progress : 0) * duration * rate)) / rate;
 }
 
-/** @typedef {{from:string,to:string,effect:'page'|'showcase'|'fade',length:number}} TransitionCue */
+/** @typedef {{from:string,to:string,effect:'page'|'dissolve'|'fade',length:number}} TransitionCue */
 /** @type {TransitionCue[]} */
 export const transitionCues = [
-  { from:'about', to:'interests', effect:'page', length:0 },
-  { from:'interests', to:'projects', effect:'showcase', length:0 },
-  { from:'projects', to:'education', effect:'showcase', length:0 },
-  { from:'education', to:'contact', effect:'fade', length:45 },
+  { from:'about', to:'interests', effect:'dissolve', length:0 },
+  { from:'interests', to:'projects', effect:'dissolve', length:0 },
+  { from:'projects', to:'education', effect:'dissolve', length:0 },
+  { from:'education', to:'contact', effect:'dissolve', length:0 },
 ];
 export function sectionTransition(items, index) {
   if (index >= items.length - 1) return { effect:'none', length:0 };
@@ -25,12 +25,17 @@ export function sectionTransition(items, index) {
 /** Reading lasts one viewport; transition lengths follow actual adjacent IDs. */
 export function samplePage(scroll, starts, items, viewport) {
   let index = starts.length - 1;
-  while (index > 0 && scroll < starts[index]) index--;
+  // Browser scroll positions round subpixels; use the navigator's same tolerance.
+  while (index > 0 && scroll + 2 < starts[index]) index--;
   if (index < 0) return { index:-1, next:-1, hold:0, transition:0, effect:'none' };
   const next = Math.min(index + 1, items.length - 1);
   const cue = sectionTransition(items, index);
   const local = Math.max(0, scroll - starts[index]);
-  return { index, next, hold:clamp(local / viewport), transition:cue.length ? clamp((local - viewport) / (viewport * cue.length / 100)) : 0, effect:cue.effect };
+  // Use the same measured interval as the navigator. On mobile, 100vh section
+  // spacing can stay fixed while the address bar changes innerHeight.
+  const extent = starts[index + 1] - starts[index];
+  const sectionViewport = extent > 0 ? extent / (1 + cue.length / 100) : viewport;
+  return { index, next, hold:clamp(local / sectionViewport), transition:cue.effect === 'dissolve' ? clamp(local / sectionViewport) : cue.length ? clamp((local - sectionViewport) / (sectionViewport * cue.length / 100)) : 0, effect:cue.effect };
 }
 
 export const contentEnterStart = effect => effect === 'fade' ? .55 : .82;

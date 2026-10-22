@@ -61,6 +61,7 @@
 .extensionImage img { opacity:0; }
 .extensionImage img[data-visible=true] { opacity:.34; }
 .skills[data-instant=true] .plate,.skills[data-instant=true] .extension,.skills[data-instant=true] .thumb,.skills[data-instant=true] .toggle span,.skills[data-instant=true] .close { transition:none; }
+@media (prefers-reduced-motion:reduce) { .cards button[aria-selected=true] .thumb,.cards button:hover .thumb,.cards button:active .thumb { transform:none; } }
 @media (min-width:901px) and (max-width:1150px) { .column { width:43vw; } .extension { left:59vw; width:37.7vw; max-width:calc(100% - 59vw); gap:16px; } .extensionImage { width:20%; } .rail { gap:9px; } .cards { gap:7px; } .label { font-size:9px; } }
 @media (min-width:901px) and (max-height:760px) { .column { padding:26px 4px; overflow-y:auto; justify-content:safe center; scrollbar-width:thin; } .kicker { margin-bottom:14px; } .bubble { margin-top:16px; } .bar { margin-top:16px; } .rail { margin-top:22px; } .thumb { aspect-ratio:62/90; } .ruleRow { margin-top:18px; } .extensionBody { max-height:calc(100% - 80px); overflow-y:auto; scrollbar-width:thin; } }
 @media (min-width:901px) and (max-height:620px) { .column { justify-content:flex-start; } }

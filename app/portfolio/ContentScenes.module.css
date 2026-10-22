@@ -100,5 +100,6 @@
 .openWork:active,.readPaper:active { transform:scale(.98); }
 .projects[data-instant=true] .listMark,.publications[data-instant=true] .listMark { transition:none; }
 @media (hover:hover) and (pointer:fine) { .openWork:hover span,.readPaper:hover span { transform:translate(3px,-3px); } }
+@media (prefers-reduced-motion:reduce) { .workList button[aria-selected=true] .listMark,.documentList button[aria-selected=true] .listMark,.openWork:active,.readPaper:active,.openWork:hover span,.readPaper:hover span { transform:none; } }
 .projectHeading p,.heading p { word-break:keep-all; overflow-wrap:anywhere; }
 @media (min-width:901px) and (max-height:750px) { .ticket { width:66%; } .ticket h3 { font-size:23px; } .poster { bottom:5%; } }

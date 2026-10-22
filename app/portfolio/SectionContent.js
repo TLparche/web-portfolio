@@ -59,8 +59,6 @@ export default function SectionContent({ section, onSelect, profile }) {
 
     case 'activities':
       return <Activities section={section} onSelect={onSelect}/>;
-    case 'contact':
-      return <div className={styles.contact}><span className={styles.contactLine} aria-hidden="true" /><p>새로운 연결, 새로운 이야기.</p><div className={styles.contactLinks}>{profile.email ? <a href={`mailto:${profile.email}`}>{profile.email} ↗</a> : <span className={styles.contactPlaceholder}>이메일을 입력하세요</span>}{profile.cv && <a href={assetUrl(profile.cv)}>CV 다운로드 ↓</a>}{profile.links.length ? profile.links.map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label} ↗</a>) : <span className={styles.contactPlaceholder}>공개할 링크를 입력하세요</span>}</div></div>;
     default:
       return null;
   }

@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useReducedMotion } from 'motion/react';
 import { contentTiming } from './SceneArt';
 
 /** The desktop chapter already fades with scroll; never stack a second reveal. */
 export default function useSceneEntrance(ref, enhanced) {
+  const reduced = useReducedMotion();
   useEffect(() => {
-    if (enhanced || !ref.current) return;
+    if (reduced || enhanced || !ref.current) return;
     const nodes = [...ref.current.querySelectorAll('[data-enter]')];
     const animations = [];
     const timing = contentTiming(getComputedStyle(ref.current));
@@ -22,5 +24,5 @@ export default function useSceneEntrance(ref, enhanced) {
     }, { threshold: .12, rootMargin: '0px 0px -6% 0px' });
     nodes.forEach(node => observer.observe(node));
     return () => { observer.disconnect(); animations.forEach(animation => animation.cancel()); };
-  }, [ref, enhanced]);
+  }, [ref, enhanced, reduced]);
 }

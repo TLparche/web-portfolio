@@ -1,9 +1,15 @@
 'use client';
+import { lockPageScroll } from './scroll-lock.mjs';
 
-import { Component, useCallback, useEffect, useRef, useState } from 'react';
-import { motion, useMotionValue, useMotionValueEvent, useScroll, useTransform } from 'motion/react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useSpring } from 'motion/react';
 import { assetUrl, sectionForAnchor } from './config.mjs';
-import { clamp, smooth, samplePage, sectionTransition, textOpacity, contentEnterStart, contentExitEnd } from './timeline.mjs';
+import { clamp } from './timeline.mjs';
+import { CHAPTER_DISTANCE, sampleChapter, readingOffset } from './chapter-timeline.mjs';
+import { SCROLL_RESPONSE } from './scroll-response.mjs';
+import { ScenePreparationContext } from './LoadingGate';
+import ScrollPanel from './ScrollPanel';
+import SceneBackdrop from './SceneBackdrop';
 import SectionContent, { Tags, ActivityReading } from './SectionContent';
 import InterestPanel from './InterestPanel';
 import SkillsPanel from './SkillsPanel';
@@ -12,8 +18,8 @@ import { PublicationPanel, ProjectReading, PaperReading } from './ContentScenes'
 import { ExperiencePanel, CredentialsPanel, EducationPanel, AwardsPanel } from './EvidenceScenes';
 import ChapterGroup from './ChapterGroup';
 import WorkGallery from './WorkGallery';
-import useSceneEntrance from './useSceneEntrance';
-import useSectionNavigation from './useSectionNavigation';
+import { ArchiveCover, ArchiveIntro, ArchiveEducation, ArchiveContact as ContactPanel } from './ArchiveScenes';
+import useChapterNavigation from './useChapterNavigation';
 import styles from './Portfolio.module.css';
 
 
@@ -21,67 +27,13 @@ function DetailReading({item}) {
   return <><div className={styles.detailBody}>{item.detail}{item.bullets && <ul>{item.bullets.map(text=><li key={text}>{text}</li>)}</ul>}{item.detailSections?.map(part=><section key={part.title}><h3>{part.title}</h3><p>{part.body}</p></section>)}</div>{item.links?.length>0 && <nav className={styles.detailLinks} aria-label="관련 자료">{item.links.filter(link=>link.url).map(link=><a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label} ↗</a>)}</nav>}</>;
 }
 
-class SceneBoundary extends Component {
-  state = { failed: false };
-  static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch() { this.props.onFailure(); }
-  render() { return this.state.failed ? null : this.props.children; }
-}
-
-function ProfilePreview({ profile, firstId, progress, enhanced }) {
-  const opacity = useTransform(progress, value => enhanced ? 1 - smooth(.1, .9, value) : 1);
-  const transform = useTransform(progress, value => enhanced ? `translateY(${-24 * value}px) scale(${1 - .015 * value})` : 'none');
-  const [visible, setVisible] = useState(true);
-  useMotionValueEvent(opacity, 'change', value => setVisible(value > .05));
-  useEffect(() => { setVisible(!enhanced || opacity.get() > .05); }, [enhanced, opacity]);
-  return <section id="preview" className={styles.preview} aria-labelledby="preview-name" data-preview>
-    <motion.div className={styles.previewStage} data-preview-stage style={{ opacity }} inert={enhanced && !visible} aria-hidden={enhanced && !visible ? true : undefined}>
-      <motion.div className={styles.nameCard} style={{ transform }}>
-        <div className={styles.cardTop}><span>PERSONAL PORTFOLIO</span><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 10 16 4l11 6v12l-11 6L5 22Z M5 10l11 6 11-6M16 16v12M16 4v12M5 22l11-6 11 6" /></svg></div>
-        <div className={styles.cardIdentity}>
-          <p className={styles.cardRole}>{profile.role || '직무 · 전공 · 관심 분야'}</p>
-          <h1 id="preview-name">{profile.name || '이름 / 닉네임'}</h1>
-          <p className={styles.cardTagline}>{profile.tagline || '나를 소개하는 한 문장을 적어주세요.'}</p>
-        </div>
-        <dl className={styles.cardDetails}>
-          <div><dt>소속</dt><dd>{profile.affiliation || '소속을 입력하세요'}</dd></div>
-          <div><dt>이메일</dt><dd>{profile.email ? <a href={`mailto:${profile.email}`}>{profile.email}</a> : '이메일을 입력하세요'}</dd></div>
-          <div><dt>링크</dt><dd>{profile.links.length ? profile.links.map(link => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label} ↗</a>) : '공개할 링크를 입력하세요'}</dd></div>
-        </dl>
-      </motion.div>
-      <a className={styles.previewEnter} href={`#${firstId}`}><span>스크롤해서 더 알아보기<small>EXPLORE THE PORTFOLIO</small></span><span className={styles.previewArrow} aria-hidden="true">↓</span></a>
-    </motion.div>
-  </section>;
-}
-
-function Panel({ section, index, count, state, navigation, coverProgress, enhanced, onDetail, onSelect, scene, firstId, projectId, researchId, profile, cue, poster }) {
-  const opacity = useTransform([state, coverProgress, navigation], ([value, cover, move]) => {
-    if (!enhanced) return 1;
-    if (move) {
-      if (index !== move.from && index !== move.to) return 0;
-      if (move.effect === 'page') return 1;
-      return index === move.from ? 1 - clamp(move.elapsed / 100) : Number(move.elapsed >= 100);
-    }
-    return textOpacity(index, value) * smooth(.55, 1, cover);
-  });
-  const transform = useTransform([opacity, navigation], ([value, move]) => {
-    if (!enhanced) return 'none';
-    if (move?.effect === 'page') {
-      const offset = index === move.from ? -move.progress : 1 - move.progress;
-      return `translateY(${offset * move.direction * 100}vh)`;
-    }
-    return move ? 'none' : `translateY(${(1 - value) * 8}px)`;
-  });
-  const panel = useRef(null);
-  useSceneEntrance(panel, enhanced);
-  const [visible, setVisible] = useState(true);
-  useMotionValueEvent(opacity, 'change', (value) => setVisible(value > .01));
-  useEffect(() => { setVisible(!enhanced || opacity.get() > .01); }, [enhanced, opacity]);
+function Panel({ section, index, count, state, staged, reduced, onDetail, onSelect, profile, projectId, researchId }) {
   const Heading = 'h2';
-  const chapter = `${String(index + 1).padStart(2, '0')} / ${String(count).padStart(2, '0')}`;
-  return <section id={section.id} className={styles.section} style={{'--section-length':`${100+cue.length}vh`}} data-section data-transition-effect={cue.effect} data-transition-length={cue.length} data-kind={section.kind} data-side={section.framing.side} aria-labelledby={`${section.id}-title`}>
-    <motion.div ref={panel} className={styles.panel} data-panel style={{ opacity, transform }} inert={enhanced && !visible} aria-hidden={enhanced && !visible ? true : undefined}>
-      {section.kind === 'projects' ? <WorkGallery section={section} Heading={Heading} chapter={chapter} onDetail={onDetail} visible={visible}/> : section.chapters ? <ChapterGroup section={section} Heading={Heading} chapter={chapter} onDetail={onDetail} profile={profile}/> : section.kind === 'interests' ? <InterestPanel section={section} Heading={Heading} chapter={chapter} visible={visible}/> : section.kind === 'skills' ? <SkillsPanel section={section} index={index} Heading={Heading} visible={visible}/> : section.kind === 'publications' ? <PublicationPanel section={section} Heading={Heading} onDetail={onDetail}/> : section.kind === 'experience' ? <ExperiencePanel section={section} Heading={Heading} chapter={chapter} onDetail={onDetail}/> : section.kind === 'credentials' ? <CredentialsPanel section={section} Heading={Heading} chapter={chapter}/> : section.kind === 'education' ? <EducationPanel section={section} Heading={Heading} chapter={chapter}/> : section.kind === 'awards' ? <AwardsPanel section={section} Heading={Heading} chapter={chapter}/> : <div className={styles.copy} data-copy data-enter={section.kind === 'activities' ? undefined : 'title'}>
+  const chapter = String(index).padStart(2,'0') + ' / ' + String(count).padStart(2,'0');
+  const firstId = 'preview';
+  return <section id={section.id} className={styles.section} data-section data-chapter data-kind={section.kind} data-side={section.framing.side} aria-labelledby={section.id+'-title'}>
+    <ScrollPanel index={index} state={state} staged={staged} reduced={reduced} className={styles.panel}>{visible => <>
+{section.kind === 'intro' ? <ArchiveIntro section={section} chapter={chapter} profile={profile} projectId={projectId} researchId={researchId}/> : section.kind === 'education' ? <ArchiveEducation section={section} chapter={chapter} profile={profile}/> : section.kind === 'contact' ? <ContactPanel section={section} Heading={Heading} chapter={chapter} profile={profile} firstId={firstId}/> : section.kind === 'projects' ? <WorkGallery section={section} Heading={Heading} chapter={chapter} onDetail={onDetail} visible={visible}/> : section.chapters ? <ChapterGroup section={section} Heading={Heading} chapter={chapter} onDetail={onDetail} profile={profile}/> : section.kind === 'interests' ? <InterestPanel section={section} Heading={Heading} chapter={chapter} visible={visible}/> : section.kind === 'skills' ? <SkillsPanel section={section} index={index} Heading={Heading} visible={visible}/> : section.kind === 'publications' ? <PublicationPanel section={section} Heading={Heading} onDetail={onDetail}/> : section.kind === 'experience' ? <ExperiencePanel section={section} Heading={Heading} chapter={chapter} onDetail={onDetail}/> : section.kind === 'credentials' ? <CredentialsPanel section={section} Heading={Heading} chapter={chapter}/> : section.kind === 'education' ? <EducationPanel section={section} Heading={Heading} chapter={chapter}/> : section.kind === 'awards' ? <AwardsPanel section={section} Heading={Heading} chapter={chapter}/> : <div className={styles.copy} data-copy data-enter={section.kind === 'activities' ? undefined : 'title'}>
         <div className={styles.chapter}><span>{String(index + 1).padStart(2, '0')} / {String(count).padStart(2, '0')}</span><span>{section.title}</span></div>
         <Heading id={`${section.id}-title`} className={styles.display}>{section.kind==='intro' ? section.headline : section.display}</Heading>
         <h3 className={styles.headline}>{section.kind==='intro' ? section.display.replace('\n',' ') : section.headline}</h3>
@@ -89,117 +41,78 @@ function Panel({ section, index, count, state, navigation, coverProgress, enhanc
         <SectionContent section={section} onDetail={onDetail} onSelect={onSelect} profile={profile} />
         {section.kind === 'intro' && projectId && <a href={`#${projectId}`} className={styles.primary}>작업 보기 <span aria-hidden="true">↗</span></a>}
         {section.kind === 'intro' && researchId && <a href={`#${researchId}`} className={styles.secondary}>연구 보기</a>}
-        {section.kind === 'contact' && <a href={`#${firstId}`} className={styles.primary}>처음으로 <span aria-hidden="true">↑</span></a>}
       </div>}
-      {scene && <figure className={styles.still} aria-hidden="true"><picture>{poster && <source media="(min-width:901px)" srcSet={assetUrl(poster)}/>}<img src={assetUrl(scene.still)} alt="" width="960" height="540" loading={index === 0 ? 'eager' : 'lazy'} /></picture><figcaption>형태를 넘어, 다음 가능성으로.</figcaption></figure>}
-    </motion.div>
+    </>}</ScrollPanel>
   </section>;
 }
 
-export default function Portfolio({ sections, scenes, tracks, profile }) {
-  const root = useRef(null);
-  const starts = useRef([]);
-  const viewportPosition = useRef({ height: 0, scroll: 0 });
+export default function Portfolio({ sections, profile }) {
+  const root = useRef(null), starts = useRef([]), extent = useRef(1), alignedHash = useRef(false);
+  const ids = useMemo(() => ['preview',...sections.map(section=>section.id)], [sections]);
   const { scrollY } = useScroll();
-  const coverProgress = useMotionValue(0);
+  const visualY = useSpring(0, SCROLL_RESPONSE);
+  const { entranceOpening } = useContext(ScenePreparationContext);
+  const state = useMotionValue({index:0,next:Math.min(1,sections.length),progress:0,media:0,dissolve:0});
   const contentProgress = useMotionValue(0);
-  const [onCover, setOnCover] = useState(true);
-  const state = useMotionValue({ index: 0, next: Math.min(1, sections.length - 1), hold: 0, transition: 0, effect:sectionTransition(sections,0).effect });
-  const navigation = useMotionValue(null);
-  const [staged, setStaged] = useState(false);
-  const [moving, setMoving] = useState(false);
-  const [enhanced, setEnhanced] = useState(false);
-  const [Scene, setScene] = useState(null);
-  const [ready, setReady] = useState(false);
-  const [active, setActive] = useState(0);
-  const [menu, setMenu] = useState(false);
-  const [detail, setDetail] = useState(null);
-  const [detailInstant, setDetailInstant] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const dialog = useRef(null);
-  const menuDialog = useRef(null);
-  const trigger = useRef(null);
-  const alignedHash = useRef(false);
-  const fail = useCallback(() => { setReady(false); setEnhanced(false); }, []);
-  useEffect(() => { setStaged(true); }, []);
-  const update = useCallback((value) => {
-    if (!viewportPosition.current.height || viewportPosition.current.height === window.innerHeight) viewportPosition.current = { height: window.innerHeight, scroll: value };
-    const contentStart = starts.current[0] || window.innerHeight;
-    coverProgress.set(clamp(value / contentStart));
-    // The cover is outside the content chapters and their video timeline.
-    contentProgress.set(clamp((value - contentStart) / Math.max(1, document.documentElement.scrollHeight - window.innerHeight - contentStart)));
-    setOnCover(value < contentStart * .94);
-    const next = samplePage(value, starts.current, sections, window.innerHeight);
-    state.set(next);
-    root.current?.setAttribute('data-transitioning',String(next.effect==='fade' && next.transition>contentExitEnd(next.effect) && next.transition<contentEnterStart(next.effect)));
-    setActive(next.transition > contentEnterStart(next.effect) ? next.next : next.index);
-  }, [state, sections, coverProgress, contentProgress]);
-  useMotionValueEvent(scrollY, 'change', update);
-  useSectionNavigation({ root, starts, sections, navigation, staged, update, setMoving, viewportPosition });
-
-  useEffect(() => {
-    const query = matchMedia('(min-width: 901px)');
-    let cancelled = false;
-    let generation = 0;
-    async function configure() {
-      const current = ++generation;
-      if (!query.matches || !sections.length) { setEnhanced(false); setReady(false); return; }
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('webgl2');
-      if (!context) return;
-      context.getExtension('WEBGL_lose_context')?.loseContext();
-      try {
-        // No preload: small screens never request the 3D chunk or video.
-        const module = await import('./VideoScene');
-        if (!cancelled && current === generation && query.matches) { setScene(() => module.default); setEnhanced(true); }
-      } catch { fail(); }
-    }
-    configure(); query.addEventListener('change', configure);
-    return () => { cancelled = true; query.removeEventListener('change', configure); };
-  }, [sections.length, fail]);
-
-  useEffect(() => {
+  const [staged,setStaged] = useState(false), [chapterIndex,setChapterIndex] = useState(0);
+  const [menu,setMenu] = useState(false), [detail,setDetail] = useState(null), [detailInstant,setDetailInstant] = useState(false);
+  const [paused,setPaused] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const dialog = useRef(null), menuDialog = useRef(null), trigger = useRef(null);
+  const active = Math.max(0,chapterIndex-1), onCover = chapterIndex === 0;
+  useEffect(()=>{setStaged(!reducedMotion);},[reducedMotion]);
+  const update = useCallback(value => {
+    const next = sampleChapter(value,starts.current,extent.current);
+    const changed = state.get().index !== next.index;
+    state.set(next); if (changed) setChapterIndex(next.index);
+    if (root.current) root.current.dataset.visualScroll = value.toFixed(2);
+    contentProgress.set(clamp((next.index+next.progress)/ids.length));
+  },[state,contentProgress,ids.length]);
+  useMotionValueEvent(scrollY,'change',value => {
+    if (reducedMotion || !staged) visualY.jump(value);
+    else visualY.set(value);
+  });
+  useMotionValueEvent(visualY,'change',update);
+  const syncScroll = useCallback(value => { visualY.jump(value); update(value); },[visualY,update]);
+  useChapterNavigation({root,starts,extent,sections,staged,reducedMotion,state,syncScroll});
+  useEffect(()=>{
+    if (!entranceOpening) return;
+    const top = staged ? readingOffset(0,starts.current,extent.current) : 0;
+    window.scrollTo({top,behavior:'instant'}); syncScroll(top);
+  },[entranceOpening,staged,syncScroll]);
+  useEffect(()=>{
+    let frame;
     const measure = () => {
-      if (!root.current) return;
-      const previous = viewportPosition.current;
-      const resized = staged && previous.height && previous.height !== window.innerHeight && starts.current.length;
-      const index = resized ? starts.current.findLastIndex(top => top <= previous.scroll + 1) : -1;
-      const offset = resized ? (previous.scroll - (starts.current[index] || 0)) / previous.height : 0;
-      starts.current = [...root.current.querySelectorAll('[data-section]')].map((node) => node.getBoundingClientRect().top + window.scrollY);
-      if (resized) {
-        const position = (starts.current[index] || 0) + offset * window.innerHeight;
-        window.scrollTo({ top: position, behavior: 'instant' });
-        viewportPosition.current = { height: window.innerHeight, scroll: position };
+      if(!root.current)return;
+      const previous=state.get(), oldExtent=extent.current;
+      const markers=[...root.current.querySelectorAll('[data-chapter]')];
+      starts.current=markers.map(node=>node.getBoundingClientRect().top+window.scrollY);
+      extent.current=starts.current[1]-starts.current[0] || markers[0]?.offsetHeight || innerHeight;
+      if(alignedHash.current && staged && Math.abs(oldExtent-extent.current)>1){
+        window.scrollTo({top:(starts.current[previous.index]||0)+previous.progress*extent.current,behavior:'instant'});
       }
-      update(window.scrollY);
+      syncScroll(window.scrollY);
     };
     measure();
-    let alignmentFrame;
     const align = () => {
-      alignmentFrame = requestAnimationFrame(() => {
-        alignedHash.current = true;
-        const id = window.location.hash.slice(1);
-        const owner = sectionForAnchor(sections,id);
-        if (owner) document.getElementById(owner.id)?.scrollIntoView({ behavior: 'instant', block: 'start' });
-        measure();
+      frame=requestAnimationFrame(()=>{
+        if(!alignedHash.current){
+          const id=location.hash.slice(1), owner=sectionForAnchor(sections,id);
+          const index=id==='preview'?0:owner?sections.indexOf(owner)+1:-1;
+          if(index>=0 && staged)window.scrollTo({top:id==='preview'?0:readingOffset(index,starts.current,extent.current),behavior:'instant'});
+          else if(owner && !staged)document.getElementById(owner.id)?.scrollIntoView({behavior:'instant'});
+          alignedHash.current=true;
+        }
+        syncScroll(window.scrollY);
       });
     };
-    if (staged && !alignedHash.current) {
-      // Native reload restoration can run after hydration; align after load/layout.
-      if (document.readyState === 'complete') align();
-      else window.addEventListener('load', align, { once: true });
-    }
+    if(staged||reducedMotion===true){if(document.readyState==='complete')align();else window.addEventListener('load',align,{once:true});}
+    const observer=new ResizeObserver(measure);observer.observe(root.current);
+    window.addEventListener('resize',measure);
+    return()=>{observer.disconnect();window.removeEventListener('resize',measure);window.removeEventListener('load',align);cancelAnimationFrame(frame);};
+  },[staged,reducedMotion,sections,state,syncScroll]);
 
-    if(!staged) alignmentFrame=requestAnimationFrame(()=>{
-      const id=window.location.hash.slice(1), owner=sectionForAnchor(sections,id);
-      if(owner && owner.id!==id)document.getElementById(owner.id)?.scrollIntoView({behavior:'instant',block:'start'});
-    });
-    const observer = new ResizeObserver(measure); observer.observe(root.current);
-    window.addEventListener('resize', measure);
-    document.fonts.ready.then(measure);
-    return () => { observer.disconnect(); window.removeEventListener('resize', measure); window.removeEventListener('load', align); cancelAnimationFrame(alignmentFrame); };
-  }, [staged, update, sections]);
-
+  useEffect(() => { if (menu || detail) return lockPageScroll(document); }, [menu, detail]);
   useEffect(() => { if (detail && !dialog.current.open) dialog.current.showModal(); }, [detail]);
   useEffect(() => {
     if (menu && !menuDialog.current.open) menuDialog.current.showModal();
@@ -209,7 +122,7 @@ export default function Portfolio({ sections, scenes, tracks, profile }) {
   function openDetail(item, button, keyboard = false) { trigger.current = button; setDetailInstant(keyboard); setDetail(item); }
   function closeAnimated(node, instant = false) {
     if (!node?.open || node.dataset.closing) return;
-    if (instant || node.dataset.instant === 'true') { node.close(); return; }
+    if (reducedMotion || instant || node.dataset.instant === 'true') { node.close(); return; }
     node.dataset.closing='true';
     const current = getComputedStyle(node);
     const animation=node.animate([{opacity:current.opacity,transform:current.transform},{opacity:0,transform:'translateY(12px) scale(.98)'}],contentTiming(current));
@@ -224,23 +137,26 @@ export default function Portfolio({ sections, scenes, tracks, profile }) {
   function changeActivity(item, keyboard = false) { setDetail(item); setDetailInstant(keyboard); }
   function moveDetail(direction, event) { setDetailInstant(event.detail === 0); setDetail(details[(detailIndex + direction + details.length) % details.length]); dialog.current.scrollTop = 0; }
   const firstId = sections[0]?.id || 'main';
-  return <div ref={root} className={styles.portfolio} data-enhanced={enhanced} data-staged={staged} data-moving={moving} data-ready={ready} data-paused={paused} data-cover={onCover} data-active-kind={sections[active]?.kind}>
+  return <div ref={root} className={styles.portfolio} style={{'--chapter-length':`${CHAPTER_DISTANCE*100}svh`}} data-enhanced={staged} data-staged={staged} data-native-scroll="true" data-ready={staged} data-paused={paused} data-cover={onCover} data-active-kind={sections[active]?.kind}>
     <a className={styles.skip} href={`#${firstId}`}>본문으로 건너뛰기</a>
     <header className={styles.header}>
       <a className={styles.brand} href="#preview" aria-label="포트폴리오 처음으로"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 10 16 4l11 6v12l-11 6L5 22Z M5 10l11 6 11-6M16 16v12M16 4v12M5 22l11-6 11 6" /></svg><span>{profile.name || 'Portfolio'}<small>Ideas in motion</small></span></a>
       <nav className={styles.quickNav} aria-label="주요 메뉴">{sections.filter((section) => ['about','projects','contact'].includes(section.id)).map((section) => <a key={section.id} href={`#${section.id}`}>{section.title}</a>)}</nav>
-      {enhanced && <button className={styles.playback} onClick={()=>setPaused(value=>!value)} aria-label={paused?'배경 스크롤 연동 켜기':'배경 프레임 고정'} aria-pressed={paused}><span aria-hidden="true">{paused?'▷':'Ⅱ'}</span><span>{paused?'연동 꺼짐':'스크롤 연동'}</span></button>}
+      {staged && <button className={styles.playback} onClick={()=>setPaused(value=>!value)} aria-label={paused?'배경 움직임 재생':onCover?'배경 움직임 멈춤':'배경 프레임 고정'} aria-pressed={paused}><span aria-hidden="true">{paused?'▷':'Ⅱ'}</span><span>{paused?'배경 정지':onCover?'배경 움직임':'스크롤 연동'}</span></button>}
       <button className={styles.menuButton} onClick={event => { menuDialog.current.dataset.instant = String(event.detail === 0); setMenu(true); }} aria-haspopup="dialog" aria-expanded={menu}>전체 메뉴 <span aria-hidden="true">☰</span></button>
     </header>
-    {enhanced && Scene && tracks.length>0 && <div className={styles.canvas} aria-hidden="true"><SceneBoundary onFailure={fail}><Scene sections={sections} tracks={tracks} timeline={state} progress={contentProgress} paused={paused} occluded={!moving && ['interests','projects'].includes(sections[active]?.id) && !onCover} onReady={setReady} onFailure={fail} /></SceneBoundary></div>}
+    {staged && <SceneBackdrop profile={profile} ids={ids} state={state} paused={paused} reduced={reducedMotion}/>}
     <main id="main" className={styles.main}>
-      <ProfilePreview profile={profile} firstId={firstId} progress={coverProgress} enhanced={staged}/>
+      <section id="preview" className={styles.preview} aria-labelledby="preview-name" data-preview data-chapter>
+        <ScrollPanel index={0} state={state} staged={staged} reduced={reducedMotion} className={styles.previewStage}><ArchiveCover profile={profile} firstId={firstId}/></ScrollPanel>
+      </section>
       <noscript><style>{'[data-section],[data-section] [data-panel]{height:auto!important;min-height:100svh;overflow:visible!important}[data-section] [data-panel]{position:relative!important}[data-kind=interests] [data-panel],[data-kind=projects] [data-panel]{padding:0!important}'}</style><nav className={styles.noScriptNav} aria-label="전체 섹션">{sections.map((section) => <a key={section.id} href={`#${section.id}`}>{section.title}</a>)}</nav></noscript>
-      {sections.map((section, index) => <Panel key={section.id} section={section} index={index} count={sections.length} state={state} navigation={navigation} coverProgress={coverProgress} enhanced={staged} onDetail={openDetail} cue={sectionTransition(sections,index)} poster={tracks[0]?.poster} scene={scenes.find((scene) => scene.id === section.sceneId)} firstId="preview" projectId={sections.find((item) => item.kind === 'projects')?.id} researchId={contentSections.find(item=>item.kind==='publications')?.id} profile={profile} />)}
+      {sections.map((section,index)=><Panel key={section.id} section={section} index={index+1} count={sections.length} state={state} staged={staged} reduced={reducedMotion} onDetail={openDetail} profile={profile} projectId={sections.find(item=>item.kind==='projects')?.id} researchId={contentSections.find(item=>item.kind==='publications')?.id}/>)}
       {!sections.length && <p className={styles.empty}>새로운 이야기를 준비하고 있습니다.</p>}
     </main>
-    <nav className={styles.rail} aria-label="섹션 탐색">{sections.map((section, index) => <a key={section.id} href={`#${section.id}`} aria-label={section.title} aria-current={active === index ? 'location' : undefined}><span>{section.title}</span><i /></a>)}</nav>
-    <div className={styles.bottomBar}><span>Scroll to explore <span aria-hidden="true">↓</span></span><nav className={styles.stepNav} aria-label="이전 다음 섹션">{active > 0 ? <a href={`#${sections[active - 1].id}`} aria-label={`이전 섹션: ${sections[active - 1].title}`}>↑</a> : <span aria-hidden="true">↑</span>}<span>{sections[active]?.title} <b>{String(active + 1).padStart(2,'0')}</b><span className={styles.total}> / {String(sections.length).padStart(2,'0')}</span></span>{active < sections.length - 1 ? <a href={`#${sections[active + 1].id}`} aria-label={`다음 섹션: ${sections[active + 1].title}`}>↓</a> : <span aria-hidden="true">↓</span>}</nav></div>
+
+    <nav className={styles.rail} aria-label="섹션 탐색">{sections.map((section, index) => <a key={section.id} href={`#${section.id}`} aria-label={section.title} aria-current={!onCover && active === index ? 'location' : undefined}><span>{section.title}</span><i /></a>)}</nav>
+    <div className={styles.bottomBar}><span>스크롤하여 이야기 펼치기 <span aria-hidden="true">↓</span></span><nav className={styles.stepNav} aria-label="이전 다음 섹션">{active > 0 ? <a href={`#${sections[active - 1].id}`} aria-label={`이전 섹션: ${sections[active - 1].title}`}>↑</a> : <span aria-hidden="true">↑</span>}<span>{onCover ? '프롤로그' : sections[active]?.title} <b>{String(onCover ? 0 : active+1).padStart(2,'0')}</b><span className={styles.total}> / {String(sections.length).padStart(2,'0')}</span></span>{active < sections.length - 1 ? <a href={`#${onCover ? firstId : sections[active + 1].id}`} aria-label={`다음 섹션: ${onCover ? sections[0].title : sections[active + 1].title}`}>↓</a> : <span aria-hidden="true">↓</span>}</nav></div>
     <motion.div className={styles.progress} style={{ scaleX: contentProgress }} />
     <footer className={styles.footer}><span>{profile.name || 'Portfolio'} / 계속 만들어가는 기록</span><div>{profile.email && <a href={`mailto:${profile.email}`}>이메일</a>}{profile.cv && <a href={assetUrl(profile.cv)}>CV 다운로드</a>}{profile.links.map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label}</a>)}</div><span>콘텐츠 초안</span></footer>
     <dialog ref={menuDialog} className={styles.menuDialog} onCancel={event=>{event.preventDefault();closeMenu(event);}} onClose={() => setMenu(false)} aria-labelledby="menu-title" onClick={(event) => { if (event.target === event.currentTarget) closeMenu(event); }}>

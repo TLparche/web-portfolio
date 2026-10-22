@@ -68,7 +68,7 @@ export function createMediaMixer(gl, tracks, invalidate, onFailure) {
     let callbackId;
     if(video.requestVideoFrameCallback){const request=video.requestVideoFrameCallback.bind(video);video.requestVideoFrameCallback=callback=>{callbackId=request(callback);return callbackId;};}
     const texture=configure(new VideoTexture(video));
-    let dead=false;
+    let dead=false, requestedTime=null;
     const entry={...track,texture,video,ready:false,failed:false,decodedTime:0};
     const failure=()=>{entry.failed=true; if(primary) onFailure(); invalidate();};
     const loaded=()=>{if(dead || video.seeking)return;entry.ready=true;entry.decodedTime=video.currentTime;texture.needsUpdate=true;invalidate();};
@@ -78,9 +78,11 @@ export function createMediaMixer(gl, tracks, invalidate, onFailure) {
     entry.seek=()=>{
       if(dead || entry.failed || document.hidden || video.seeking || !Number.isFinite(video.duration))return;
       const time=videoFrameTime(progress,video.duration,track.fps);
-      if(Math.abs(video.currentTime-time)<.001)return;
+      // Media backends may complete a seek a few milliseconds off target.
+      // Compare requests too, or seeked -> invalidate -> seek loops forever.
+      if(time===requestedTime || Math.abs(video.currentTime-time)<.001)return;
       // One in-flight seek; progress stores only the latest scroll request.
-      entry.ready=false;video.currentTime=time;
+      entry.ready=false;video.currentTime=time;requestedTime=time;
     };
     entry.dispose=()=>{dead=true;video.pause();if(callbackId!==undefined)video.cancelVideoFrameCallback(callbackId);video.removeEventListener('loadeddata',loaded);video.removeEventListener('seeked',loaded);video.removeEventListener('loadedmetadata',metadata);video.removeEventListener('error',failure);video.removeAttribute('src');video.load();texture.dispose();};
     return entry;

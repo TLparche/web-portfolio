@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useReducedMotion } from 'motion/react';
 import { assetUrl } from './config.mjs';
 import styles from './SceneArt.module.css';
 
@@ -39,13 +40,14 @@ export function contentTiming(style) {
 export function ContentReveal({ value, instant, children, className = '' }) {
   const node = useRef(null);
   const animation = useRef(null);
+  const reduced = useReducedMotion();
   useEffect(() => {
     const current = getComputedStyle(node.current);
     const running = animation.current?.playState === 'running';
     const from = { opacity: running ? current.opacity : .55, transform: running ? current.transform : 'translateY(8px)' };
     animation.current?.cancel();
-    if (!instant) animation.current = node.current.animate([from, { opacity: 1, transform: 'translateY(0px)' }], contentTiming(current));
-  }, [value, instant]);
+    if (!reduced && !instant) animation.current = node.current.animate([from, { opacity: 1, transform: 'translateY(0px)' }], contentTiming(current));
+  }, [value, instant, reduced]);
   useEffect(() => () => animation.current?.cancel(), []);
   return <div ref={node} className={className} data-content-reveal>{children}</div>;
 }
