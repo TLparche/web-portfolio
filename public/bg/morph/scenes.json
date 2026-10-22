@@ -1,0 +1,607 @@
+[
+  {
+    "id": "scene-01",
+    "startFrame": 0,
+    "endFrame": 47,
+    "fps": 30.0,
+    "video": "/bg/bg.mp4",
+    "colorRect": [
+      0.0,
+      0.0,
+      1.0,
+      0.5
+    ],
+    "depthRect": [
+      0.0,
+      0.5,
+      1.0,
+      1.0
+    ],
+    "aspect": 1.7777777777777777,
+    "entry": {
+      "texture": "/bg/morph/scene-01-entry.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-01-entry-320.bin",
+          "visibleCount": 4259,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-01-entry-160.bin",
+          "visibleCount": 1121,
+          "width": 160,
+          "height": 90
+        }
+      }
+    },
+    "still": "/bg/morph/scene-01-still.webp",
+    "exit": {
+      "texture": "/bg/morph/scene-01-exit.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-01-exit-320.bin",
+          "visibleCount": 4113,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-01-exit-160.bin",
+          "visibleCount": 1109,
+          "width": 160,
+          "height": 90
+        }
+      }
+    }
+  },
+  {
+    "id": "scene-02",
+    "startFrame": 48,
+    "endFrame": 95,
+    "fps": 30.0,
+    "video": "/bg/bg.mp4",
+    "colorRect": [
+      0.0,
+      0.0,
+      1.0,
+      0.5
+    ],
+    "depthRect": [
+      0.0,
+      0.5,
+      1.0,
+      1.0
+    ],
+    "aspect": 1.7777777777777777,
+    "entry": {
+      "texture": "/bg/morph/scene-02-entry.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-02-entry-320.bin",
+          "visibleCount": 6059,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-02-entry-160.bin",
+          "visibleCount": 1591,
+          "width": 160,
+          "height": 90
+        }
+      }
+    },
+    "still": "/bg/morph/scene-02-still.webp",
+    "exit": {
+      "texture": "/bg/morph/scene-02-exit.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-02-exit-320.bin",
+          "visibleCount": 6029,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-02-exit-160.bin",
+          "visibleCount": 1593,
+          "width": 160,
+          "height": 90
+        }
+      }
+    }
+  },
+  {
+    "id": "scene-03",
+    "startFrame": 96,
+    "endFrame": 143,
+    "fps": 30.0,
+    "video": "/bg/bg.mp4",
+    "colorRect": [
+      0.0,
+      0.0,
+      1.0,
+      0.5
+    ],
+    "depthRect": [
+      0.0,
+      0.5,
+      1.0,
+      1.0
+    ],
+    "aspect": 1.7777777777777777,
+    "entry": {
+      "texture": "/bg/morph/scene-03-entry.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-03-entry-320.bin",
+          "visibleCount": 5499,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-03-entry-160.bin",
+          "visibleCount": 1460,
+          "width": 160,
+          "height": 90
+        }
+      }
+    },
+    "still": "/bg/morph/scene-03-still.webp",
+    "exit": {
+      "texture": "/bg/morph/scene-03-exit.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-03-exit-320.bin",
+          "visibleCount": 5300,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-03-exit-160.bin",
+          "visibleCount": 1409,
+          "width": 160,
+          "height": 90
+        }
+      }
+    }
+  },
+  {
+    "id": "scene-04",
+    "startFrame": 144,
+    "endFrame": 191,
+    "fps": 30.0,
+    "video": "/bg/bg.mp4",
+    "colorRect": [
+      0.0,
+      0.0,
+      1.0,
+      0.5
+    ],
+    "depthRect": [
+      0.0,
+      0.5,
+      1.0,
+      1.0
+    ],
+    "aspect": 1.7777777777777777,
+    "entry": {
+      "texture": "/bg/morph/scene-04-entry.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-04-entry-320.bin",
+          "visibleCount": 8334,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-04-entry-160.bin",
+          "visibleCount": 2165,
+          "width": 160,
+          "height": 90
+        }
+      }
+    },
+    "still": "/bg/morph/scene-04-still.webp",
+    "exit": {
+      "texture": "/bg/morph/scene-04-exit.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-04-exit-320.bin",
+          "visibleCount": 8442,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-04-exit-160.bin",
+          "visibleCount": 2213,
+          "width": 160,
+          "height": 90
+        }
+      }
+    }
+  },
+  {
+    "id": "scene-05",
+    "startFrame": 192,
+    "endFrame": 239,
+    "fps": 30.0,
+    "video": "/bg/bg.mp4",
+    "colorRect": [
+      0.0,
+      0.0,
+      1.0,
+      0.5
+    ],
+    "depthRect": [
+      0.0,
+      0.5,
+      1.0,
+      1.0
+    ],
+    "aspect": 1.7777777777777777,
+    "entry": {
+      "texture": "/bg/morph/scene-05-entry.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-05-entry-320.bin",
+          "visibleCount": 6069,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-05-entry-160.bin",
+          "visibleCount": 1596,
+          "width": 160,
+          "height": 90
+        }
+      }
+    },
+    "still": "/bg/morph/scene-05-still.webp",
+    "exit": {
+      "texture": "/bg/morph/scene-05-exit.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-05-exit-320.bin",
+          "visibleCount": 6069,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-05-exit-160.bin",
+          "visibleCount": 1594,
+          "width": 160,
+          "height": 90
+        }
+      }
+    }
+  },
+  {
+    "id": "scene-06",
+    "startFrame": 240,
+    "endFrame": 287,
+    "fps": 30.0,
+    "video": "/bg/bg.mp4",
+    "colorRect": [
+      0.0,
+      0.0,
+      1.0,
+      0.5
+    ],
+    "depthRect": [
+      0.0,
+      0.5,
+      1.0,
+      1.0
+    ],
+    "aspect": 1.7777777777777777,
+    "entry": {
+      "texture": "/bg/morph/scene-06-entry.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-06-entry-320.bin",
+          "visibleCount": 6419,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-06-entry-160.bin",
+          "visibleCount": 1680,
+          "width": 160,
+          "height": 90
+        }
+      }
+    },
+    "still": "/bg/morph/scene-06-still.webp",
+    "exit": {
+      "texture": "/bg/morph/scene-06-exit.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-06-exit-320.bin",
+          "visibleCount": 5836,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-06-exit-160.bin",
+          "visibleCount": 1540,
+          "width": 160,
+          "height": 90
+        }
+      }
+    }
+  },
+  {
+    "id": "scene-07",
+    "startFrame": 288,
+    "endFrame": 335,
+    "fps": 30.0,
+    "video": "/bg/bg.mp4",
+    "colorRect": [
+      0.0,
+      0.0,
+      1.0,
+      0.5
+    ],
+    "depthRect": [
+      0.0,
+      0.5,
+      1.0,
+      1.0
+    ],
+    "aspect": 1.7777777777777777,
+    "entry": {
+      "texture": "/bg/morph/scene-07-entry.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-07-entry-320.bin",
+          "visibleCount": 4304,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-07-entry-160.bin",
+          "visibleCount": 1142,
+          "width": 160,
+          "height": 90
+        }
+      }
+    },
+    "still": "/bg/morph/scene-07-still.webp",
+    "exit": {
+      "texture": "/bg/morph/scene-07-exit.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-07-exit-320.bin",
+          "visibleCount": 4655,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-07-exit-160.bin",
+          "visibleCount": 1235,
+          "width": 160,
+          "height": 90
+        }
+      }
+    }
+  },
+  {
+    "id": "scene-08",
+    "startFrame": 336,
+    "endFrame": 383,
+    "fps": 30.0,
+    "video": "/bg/bg.mp4",
+    "colorRect": [
+      0.0,
+      0.0,
+      1.0,
+      0.5
+    ],
+    "depthRect": [
+      0.0,
+      0.5,
+      1.0,
+      1.0
+    ],
+    "aspect": 1.7777777777777777,
+    "entry": {
+      "texture": "/bg/morph/scene-08-entry.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-08-entry-320.bin",
+          "visibleCount": 4305,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-08-entry-160.bin",
+          "visibleCount": 1164,
+          "width": 160,
+          "height": 90
+        }
+      }
+    },
+    "still": "/bg/morph/scene-08-still.webp",
+    "exit": {
+      "texture": "/bg/morph/scene-08-exit.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-08-exit-320.bin",
+          "visibleCount": 4251,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-08-exit-160.bin",
+          "visibleCount": 1141,
+          "width": 160,
+          "height": 90
+        }
+      }
+    }
+  },
+  {
+    "id": "scene-09",
+    "startFrame": 384,
+    "endFrame": 431,
+    "fps": 30.0,
+    "video": "/bg/bg.mp4",
+    "colorRect": [
+      0.0,
+      0.0,
+      1.0,
+      0.5
+    ],
+    "depthRect": [
+      0.0,
+      0.5,
+      1.0,
+      1.0
+    ],
+    "aspect": 1.7777777777777777,
+    "entry": {
+      "texture": "/bg/morph/scene-09-entry.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-09-entry-320.bin",
+          "visibleCount": 3742,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-09-entry-160.bin",
+          "visibleCount": 1039,
+          "width": 160,
+          "height": 90
+        }
+      }
+    },
+    "still": "/bg/morph/scene-09-still.webp",
+    "exit": {
+      "texture": "/bg/morph/scene-09-exit.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-09-exit-320.bin",
+          "visibleCount": 4053,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-09-exit-160.bin",
+          "visibleCount": 1083,
+          "width": 160,
+          "height": 90
+        }
+      }
+    }
+  },
+  {
+    "id": "scene-10",
+    "startFrame": 432,
+    "endFrame": 479,
+    "fps": 30.0,
+    "video": "/bg/bg.mp4",
+    "colorRect": [
+      0.0,
+      0.0,
+      1.0,
+      0.5
+    ],
+    "depthRect": [
+      0.0,
+      0.5,
+      1.0,
+      1.0
+    ],
+    "aspect": 1.7777777777777777,
+    "entry": {
+      "texture": "/bg/morph/scene-10-entry.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-10-entry-320.bin",
+          "visibleCount": 5039,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-10-entry-160.bin",
+          "visibleCount": 1347,
+          "width": 160,
+          "height": 90
+        }
+      }
+    },
+    "still": "/bg/morph/scene-10-still.webp",
+    "exit": {
+      "texture": "/bg/morph/scene-10-exit.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-10-exit-320.bin",
+          "visibleCount": 5215,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-10-exit-160.bin",
+          "visibleCount": 1385,
+          "width": 160,
+          "height": 90
+        }
+      }
+    }
+  },
+  {
+    "id": "scene-11",
+    "startFrame": 480,
+    "endFrame": 527,
+    "fps": 30.0,
+    "video": "/bg/bg.mp4",
+    "colorRect": [
+      0.0,
+      0.0,
+      1.0,
+      0.5
+    ],
+    "depthRect": [
+      0.0,
+      0.5,
+      1.0,
+      1.0
+    ],
+    "aspect": 1.7777777777777777,
+    "entry": {
+      "texture": "/bg/morph/scene-11-entry.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-11-entry-320.bin",
+          "visibleCount": 5591,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-11-entry-160.bin",
+          "visibleCount": 1482,
+          "width": 160,
+          "height": 90
+        }
+      }
+    },
+    "still": "/bg/morph/scene-11-still.webp",
+    "exit": {
+      "texture": "/bg/morph/scene-11-exit.webp",
+      "tiers": {
+        "320": {
+          "order": "/bg/morph/scene-11-exit-320.bin",
+          "visibleCount": 5341,
+          "width": 320,
+          "height": 180
+        },
+        "160": {
+          "order": "/bg/morph/scene-11-exit-160.bin",
+          "visibleCount": 1430,
+          "width": 160,
+          "height": 90
+        }
+      }
+    }
+  }
+]
