@@ -1,3 +1,5 @@
+import { DISSOLVE_FEATHER, dissolveTone } from './dissolve.mjs';
+
 export function createBackdropRenderer(canvas) {
   const gl = canvas.getContext('webgl',{alpha:false,antialias:false,depth:false,failIfMajorPerformanceCaveat:true});
   if (!gl) return null;
@@ -16,7 +18,7 @@ export function createBackdropRenderer(canvas) {
     uniform vec2 viewport,aspect,progress;
     uniform vec4 positions;
     uniform vec2 contain;
-    uniform float dissolve,reduced,fieldReady,ambient,clock;
+    uniform float dissolve,reduced,fieldReady,ambient,clock,outgoingTone;
     float random(vec2 p){p=fract(p*vec2(.1031,.11369));p+=dot(p,p.yx+19.19);return fract((p.x+p.y)*p.x);}
     float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(random(i),random(i+vec2(1.,0.)),f.x),mix(random(i+vec2(0.,1.)),random(i+1.),f.x),f.y);}
     vec4 sampleImage(sampler2D image,float ratio,float p,vec2 focus,float fit,vec2 screenPoint){
@@ -65,9 +67,11 @@ export function createBackdropRenderer(canvas) {
       vec3 field=texture2D(fieldImage,uv).rgb;
       float threshold=fieldReady>.5?clamp(2.*field.r-.075*field.b-.4625,0.,1.):
         clamp(.7*noise(uv*vec2(9.,6.))+.3*noise(uv*vec2(90.,60.)),0.,1.);
-      float incoming=1.-smoothstep(dissolve-.008,dissolve+.008,threshold);
+      float boundary=dissolve*${1+DISSOLVE_FEATHER}-${DISSOLVE_FEATHER/2};
+      float incoming=1.-smoothstep(boundary-${DISSOLVE_FEATHER/2},boundary+${DISSOLVE_FEATHER/2},threshold);
       a=etched(imageA,aspect.x,progress.x,positions.xy,contain.x,a,threshold,true);
-      b=etched(imageB,aspect.y,progress.y,positions.zw,contain.y,b,threshold,false);
+      a=mix(a,vec3(dot(a,vec3(.2126,.7152,.0722))),outgoingTone);
+      b=mix(b,etched(imageB,aspect.y,progress.y,positions.zw,contain.y,b,threshold,false),.35);
       gl_FragColor=vec4(mix(a,b,incoming),1.);
     }`));
   gl.linkProgram(program);
@@ -76,7 +80,7 @@ export function createBackdropRenderer(canvas) {
   const buffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
   gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
   const position = gl.getAttribLocation(program,'position'); gl.enableVertexAttribArray(position); gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
-  const uniforms = Object.fromEntries(['imageA','imageB','viewport','aspect','progress','positions','contain','dissolve','reduced','fieldImage','fieldReady','ambient','clock'].map(name=>[name,gl.getUniformLocation(program,name)]));
+  const uniforms = Object.fromEntries(['imageA','imageB','viewport','aspect','progress','positions','contain','dissolve','reduced','fieldImage','fieldReady','ambient','clock','outgoingTone'].map(name=>[name,gl.getUniformLocation(program,name)]));
   gl.uniform1i(uniforms.imageA,0); gl.uniform1i(uniforms.imageB,1); gl.uniform1i(uniforms.fieldImage,2);
   const fieldTexture=gl.createTexture();
   let fieldSource=null;
@@ -127,6 +131,7 @@ export function createBackdropRenderer(canvas) {
       gl.uniform2f(uniforms.progress,a.progress,b.progress);gl.uniform4f(uniforms.positions,...a.position,...b.position);
       gl.uniform2f(uniforms.contain,Number(a.contain),Number(b.contain));gl.uniform1f(uniforms.dissolve,blend);gl.uniform1f(uniforms.reduced,Number(reduced));
       gl.uniform1f(uniforms.ambient,ambient);gl.uniform1f(uniforms.clock,time);
+      gl.uniform1f(uniforms.outgoingTone,dissolveTone(blend));
       gl.drawArrays(gl.TRIANGLES,0,6);
     },
     dispose(){gl.deleteTexture(fieldTexture);textures.forEach(record=>gl.deleteTexture(record.texture));textures.clear();gl.deleteBuffer(buffer);gl.deleteProgram(program);shaders.forEach(value=>gl.deleteShader(value));},

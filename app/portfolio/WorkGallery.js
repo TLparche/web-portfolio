@@ -21,12 +21,12 @@ function imageError(event, item) {
 }
 // Six independent cuts measured against the reference's 1920 × 1080 composition.
 const pieces = [
-  { points: [[664,139],[804,139],[594,569],[454,569]], enter: 'translate(168px,-345px)', duration: .733, art: [240,140,880,1000] },
-  { points: [[747,264],[836,370],[557,941],[418,941]], enter: 'translate(-166px,339px)', duration: .833, art: [230,430,900,960] },
-  { points: [[987,71],[1076,178],[712,923],[625,816]], enter: 'translate(248px,-487px)', duration: .5, art: [455,220,920,1100] },
-  { points: [[1044,252],[1186,252],[890,863],[747,863]], enter: 'translate(-166px,339px)', duration: .833, art: [525,510,820,1000] },
-  { points: [[1146,344],[1233,453],[928,1080],[788,1080]], enter: 'translate(-170px,348.5px)', duration: .5, art: [630,430,950,1150] },
-  { points: [[1338,252],[1478,252],[1168,885],[1081,780]], enter: 'translate(-166px,339px)', duration: .833, art: [965,365,700,850] },
+  { points: [[664,139],[804,139],[594,569],[454,569]], enter: 'ribbon-up', art: [240,140,880,1000] },
+  { points: [[747,264],[836,370],[557,941],[418,941]], enter: 'ribbon-down', art: [230,430,900,960] },
+  { points: [[987,71],[1076,178],[712,923],[625,816]], enter: 'ribbon-up', art: [455,220,920,1100] },
+  { points: [[1044,252],[1186,252],[890,863],[747,863]], enter: 'ribbon-down', art: [525,510,820,1000] },
+  { points: [[1146,344],[1233,453],[928,1080],[788,1080]], enter: 'ribbon-down', art: [630,430,950,1150] },
+  { points: [[1338,252],[1478,252],[1168,885],[1081,780]], enter: 'ribbon-down', art: [965,365,700,850] },
 ];
 const polygon = points => `polygon(${points.map(([x,y]) => `${x / 19.2}% ${y / 10.8}%`).join(',')})`;
 
@@ -40,7 +40,7 @@ function RecordText({ item }) {
   </>;
 }
 
-function FeaturedList({ items, open, instant, reduced, onIntent, visible, returnFocus }) {
+function FeaturedList({ items, open, instant, reduced, onIntent, returnFocus }) {
   const [preview, setPreview] = useState(null), [keyboard, setKeyboard] = useState(false);
   const current = useRef(null), lockedUntil = useRef(0), leaveTimer = useRef(null), restoring = useRef(false), rail = useRef(null);
   const present = useIsPresent(), immediate = instant || keyboard;
@@ -75,23 +75,23 @@ function FeaturedList({ items, open, instant, reduced, onIntent, visible, return
     event.preventDefault(); expand(next, true); buttons[next]?.focus({ preventScroll: true });
     if (rail.current.scrollWidth > rail.current.clientWidth) buttons[next]?.scrollIntoView({ behavior: 'instant', block: 'nearest', inline: 'center' });
   }
-  return <motion.div className={styles.listView} data-reveal="2" data-work-list data-instant={immediate} aria-hidden={!present} inert={!present} exit={{ opacity: 0 }} transition={{ duration: immediate ? 0 : .16 }}>
+  return <motion.div className={styles.listView} data-work-list data-instant={immediate} aria-hidden={!present} inert={!present} exit={{ opacity: 0 }} transition={{ duration: immediate ? 0 : .16 }}>
     <div ref={rail} className={styles.ribbons} role="list" aria-label="대표 작업 6개" onKeyDown={key}>
       {items.map((record, index) => {
         const piece = pieces[index % pieces.length], active = preview === index, art = artwork(record.item);
         const shift = preview !== null && index > preview ? 285 : 0;
         const expanded = polygon([[694 + index * 142,0],[1118 + index * 142,0],[632 + index * 142,1080],[207 + index * 142,1080]]);
-        return <motion.div key={record.item.id} className={styles.ribbon} role="listitem" data-preview={active} data-piece={index + 1} initial={immediate || !visible ? false : { opacity: 0, transform: piece.enter }} animate={{ opacity: 1, transform: 'translate(0px,0px)' }} transition={{ transform: { duration: immediate ? 0 : piece.duration, delay: immediate ? 0 : (index + 1) / 15, ease }, opacity: { duration: immediate ? 0 : .3, delay: immediate ? 0 : (index + 1) / 15 } }}>
+        return <div key={record.item.id} className={styles.ribbon} role="listitem" data-preview={active} data-piece={index + 1} data-reveal={.5 + index * .55} data-reveal-kind={piece.enter} data-reveal-phase="surface">
           <div className={styles.ribbonShift} style={{ transform: `translateX(${shift}px)` }}>
             <button id={`projects-work-${record.item.id}`} className={styles.card} data-work-card data-item-id={record.item.id} aria-label={`${record.item.title} 자세히 보기`} aria-expanded={active} aria-controls="projects-showcase-detail" style={{ clipPath: active ? expanded : polygon(piece.points) }} onPointerEnter={event => { if (event.pointerType === 'mouse' && matchMedia('(hover:hover) and (pointer:fine)').matches) expand(index); }} onPointerLeave={leave} onFocus={event => { if (!restoring.current && event.currentTarget.matches(':focus-visible')) expand(index, true); }} onBlur={event => { if (!rail.current?.contains(event.relatedTarget)) leave(); }} onClick={event => click(event, index)}>
               <span className={styles.stripSurface} data-dark={index % 2 === 0}/>
               {art.src && <img className={styles.stripArt} src={assetUrl(art.src)} alt="" loading="lazy" style={{ left: Math.min(...piece.points.map(point=>point[0])), top: Math.min(...piece.points.map(point=>point[1])), width: Math.max(...piece.points.map(point=>point[0]))-Math.min(...piece.points.map(point=>point[0])), height: Math.max(...piece.points.map(point=>point[1]))-Math.min(...piece.points.map(point=>point[1])) }} onError={event => imageError(event, record.item)}/>}
-              <span className={styles.stripLabel} style={{ left: piece.points[3][0] + 65, top: piece.points[3][1] - 95 }}>{record.item.title}</span>
+              <span className={styles.stripLabel} style={{ left: piece.points[3][0] + 65, top: piece.points[3][1] - 95 }}><span data-reveal={.5 + index * .55}>{record.item.title}</span></span>
             </button>
             {art.src && <img className={styles.floatingArt} src={assetUrl(art.src)} alt="" aria-hidden="true" style={{ left: 50 + index * 142 }} onError={event => imageError(event, record.item)}/>}
-            <span className={styles.caption} aria-hidden="true" style={{ left: 292 + index * 142 }}><strong>{record.item.title}</strong><small>{english[record.category.id]}</small><i aria-hidden="true">◇</i><span>더보기</span></span>
+            <span className={styles.caption} data-reveal={.5 + index * .55} aria-hidden="true" style={{ left: 292 + index * 142 }}><strong>{record.item.title}</strong><small>{english[record.category.id]}</small><i aria-hidden="true">◇</i><span>더보기</span></span>
           </div>
-        </motion.div>;
+        </div>;
       })}
     </div>
   </motion.div>;
@@ -194,12 +194,12 @@ export default function WorkGallery({ section, Heading, chapter, visible = true 
   }, []);
   return <div ref={root} className={styles.works} data-copy data-widget="works" data-view={view} data-category={category.id} data-instant={immediate} data-visible={visible} style={{ '--scene-scale': scale, '--category-font': `${Math.max(20, 12 / Math.max(scale,.1))}px` }} onKeyDown={event => { if (event.key === 'Escape' && view === 'detail') { event.preventDefault(); event.stopPropagation(); back(true); } }}>
     <div className={styles.canvas}>
-      <header className={styles.heading} data-reveal="0"><span>{chapter}</span><Heading id="projects-title">작업·경험</Heading></header>
-      <div className={styles.categories} data-reveal="2" role="tablist" aria-label="작업·경험 분류" onKeyDown={event => selectKey(event, state.selected, state.chapters.length, chooseCategory)}>
+      <header className={styles.heading} data-reveal="0" data-reveal-kind="ticket" data-reveal-phase="surface"><span data-reveal="0">{chapter}</span><Heading id="projects-title" data-reveal="0" data-reveal-kind="title">작업·경험</Heading></header>
+      <div className={styles.categories} data-reveal="3.5" data-reveal-kind="controls" role="tablist" aria-label="작업·경험 분류" onKeyDown={event => selectKey(event, state.selected, state.chapters.length, chooseCategory)}>
         {state.chapters.map((part,index) => <button key={part.id} id={`projects-category-${part.id}`} role="tab" aria-controls="projects-showcase-detail" aria-selected={view === 'detail' && index === state.selected} tabIndex={index === state.selected ? 0 : -1} onClick={event => chooseCategory(index,event.detail === 0)}><i aria-hidden="true">◇</i><span>{part.title}</span><small>{english[part.id]}</small></button>)}
       </div>
       <AnimatePresence initial={false}>
-        {view === 'list' ? <FeaturedList key="list" items={featured} open={open} instant={immediate} reduced={Boolean(reduced)} onIntent={setInstant} visible={visible} returnFocus={returnFocus}/> : <DetailView key="detail" category={category} selected={selected} select={select} back={back} instant={immediate} entry={entry} focusOnEntry={focusOnEntry} onSwipe={cycle}/>}
+        {view === 'list' ? <FeaturedList key="list" items={featured} open={open} instant={immediate} reduced={Boolean(reduced)} onIntent={setInstant} returnFocus={returnFocus}/> : <DetailView key="detail" category={category} selected={selected} select={select} back={back} instant={immediate} entry={entry} focusOnEntry={focusOnEntry} onSwipe={cycle}/>}
       </AnimatePresence>
       <span className={styles.signature} aria-hidden="true">Selected<br/>works</span>
     </div>

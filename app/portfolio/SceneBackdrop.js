@@ -4,6 +4,7 @@ import { assetUrl } from './config.mjs';
 import { visualFor } from './chapter-timeline.mjs';
 import { videoFrameTime } from './timeline.mjs';
 import { createBackdropRenderer } from './backdrop-renderer.mjs';
+import { DISSOLVE_FEATHER, dissolveTone } from './dissolve.mjs';
 import styles from './SceneBackdrop.module.css';
 import { ScenePreparationContext } from './LoadingGate';
 
@@ -69,8 +70,10 @@ export default function SceneBackdrop({ profile, ids, state, paused, reduced }) 
       if(current>0)media(current-1);
       for(const [index,entry] of cache){if(index<current-1||index>next){entry.retire();cache.delete(index);}}
       for(const [index,entry] of cache){if(index!==current&&index!==next&&entry.video){entry.retire();cache.delete(index);}}
-      if(!latest.current.paused)a.progress=latest.current.reduced?0:current===0?.5:scene.media;
-      if(b!==a)b.progress=0;
+      if(!latest.current.paused){
+        a.progress=latest.current.reduced?0:current===0?.5+.5*scene.dissolve:scene.media;
+        if(b!==a)b.progress=latest.current.reduced?0:scene.nextMedia;
+      }
       [a,b].forEach(entry=>{
         const position=innerWidth<700?(entry.visual.mobilePosition||entry.visual.position):entry.visual.position;
         entry.position=(position||'50% 50%').split(/\s+/).slice(0,2).map(value=>Math.max(0,Math.min(1,(parseFloat(value)||0)/100)));
@@ -89,11 +92,13 @@ export default function SceneBackdrop({ profile, ids, state, paused, reduced }) 
         }
       });
       const blend=latest.current.reduced?0:scene.dissolve;
+      const tone=dissolveTone(blend);
       [a,b].forEach((entry,index)=>{
         const img=fallbacks[index], url=entry.posterUrl;
         if(img.getAttribute('src')!==url)img.src=url;
         img.style.objectPosition=(innerWidth<700?entry.visual.mobilePosition:null)||entry.visual.position||'50% 50%';
         img.style.objectFit=entry.visual.fit||'cover';img.style.opacity=String(index?blend:1);
+        img.style.filter=!index&&tone?`grayscale(${tone}) brightness(${1-.2*tone})`:'';
         img.style.transform=latest.current.reduced?'none':`scale(${1.04+.08*entry.progress}) translateY(${(entry.progress-.5)*-2}%)`;
       });
       if(!a.source)canvas.style.opacity='0';
@@ -101,11 +106,11 @@ export default function SceneBackdrop({ profile, ids, state, paused, reduced }) 
         try{renderer.draw(a,b.source?b:a,blend,latest.current.reduced,node.clientWidth,node.clientHeight,{time:liveTime,ambient:current===0&&!latest.current.reduced?1-blend:0});canvas.style.opacity='1';}
         catch{renderer.dispose();renderer=null;canvas.style.opacity='0';}
       }
-      maskTransfer.current?.setAttribute('intercept',String(.5-blend/.016));
+      maskTransfer.current?.setAttribute('intercept',String(1-blend*(1+DISSOLVE_FEATHER)/DISSOLVE_FEATHER));
       owner.dataset.sceneMask=renderer&&fieldReady?'noise':'fade';
       if(a.source&&!reportedScenes.has(current)){reportedScenes.add(current);onReady(ids[current]);}
       if(measuring){const cost=performance.now()-started;drawTotal+=cost;drawMax=Math.max(drawMax,cost);Object.assign(node.dataset,{drawMaxMs:drawMax.toFixed(2),drawMeanMs:(drawTotal/(painted+1)).toFixed(2),longTasks:String(longTasks),longTaskMaxMs:longTaskMax.toFixed(1)});}
-      Object.assign(node.dataset,{scene:ids[current],progress:scene.progress.toFixed(4),dissolve:blend.toFixed(4),frames:String(++painted),renderer:renderer?'gpu':'image',effect:renderer?'noise-contour':'crossfade',players:String([...cache.values()].filter(entry=>entry.video?.getAttribute('src')).length),videoTime:String(a.video?.currentTime||0),live:String(live),ambientTime:liveTime.toFixed(2)});
+      Object.assign(node.dataset,{scene:ids[current],progress:scene.progress.toFixed(4),mediaProgress:a.progress.toFixed(4),nextMediaProgress:b.progress.toFixed(4),dissolve:blend.toFixed(4),frames:String(++painted),renderer:renderer?'gpu':'image',effect:renderer?'noise-contour':'crossfade',players:String([...cache.values()].filter(entry=>entry.video?.getAttribute('src')).length),videoTime:String(a.video?.currentTime||0),live:String(live),ambientTime:liveTime.toFixed(2)});
       atmosphere.style.opacity=String(current===0&&!latest.current.reduced?1-blend:0);
       if(live)request(false);
     }
@@ -121,7 +126,7 @@ export default function SceneBackdrop({ profile, ids, state, paused, reduced }) 
     <svg width="0" height="0" aria-hidden="true"><defs>
       <filter id="scene-dissolve-threshold" x="0" y="0" width="100%" height="100%" colorInterpolationFilters="sRGB">
         <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  2 0 -.075 0 -.4625"/>
-        <feComponentTransfer><feFuncA ref={maskTransfer} type="linear" slope="62.5" intercept=".5"/></feComponentTransfer>
+        <feComponentTransfer><feFuncA ref={maskTransfer} type="linear" slope={1/DISSOLVE_FEATHER} intercept="1"/></feComponentTransfer>
         <feComponentTransfer><feFuncA type="table" tableValues="0 .042969 .15625 .316406 .5 .683594 .84375 .957031 1"/></feComponentTransfer>
       </filter>
       <mask id="scene-dissolve" maskUnits="objectBoundingBox" maskContentUnits="objectBoundingBox" x="0" y="0" width="1" height="1" style={{maskType:'alpha'}}>

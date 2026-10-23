@@ -2,11 +2,12 @@
 import { lockPageScroll } from './scroll-lock.mjs';
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useSpring } from 'motion/react';
+import { motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll } from 'motion/react';
+import { frame, cancelFrame } from 'motion';
 import { assetUrl, sectionForAnchor } from './config.mjs';
 import { clamp } from './timeline.mjs';
 import { CHAPTER_DISTANCE, sampleChapter, readingOffset } from './chapter-timeline.mjs';
-import { SCROLL_RESPONSE } from './scroll-response.mjs';
+import { advanceReveal, followScroll, revealContinuation } from './scroll-response.mjs';
 import { ScenePreparationContext } from './LoadingGate';
 import ScrollPanel from './ScrollPanel';
 import SceneBackdrop from './SceneBackdrop';
@@ -50,9 +51,10 @@ export default function Portfolio({ sections, profile }) {
   const root = useRef(null), starts = useRef([]), extent = useRef(1), alignedHash = useRef(false);
   const ids = useMemo(() => ['preview',...sections.map(section=>section.id)], [sections]);
   const { scrollY } = useScroll();
-  const visualY = useSpring(0, SCROLL_RESPONSE);
+  const visualY = useMotionValue(0);
+  const automatic = useRef(null), navigationTarget = useRef(null);
   const { entranceOpening } = useContext(ScenePreparationContext);
-  const state = useMotionValue({index:0,next:Math.min(1,sections.length),progress:0,media:0,dissolve:0});
+  const state = useMotionValue({index:0,next:Math.min(1,sections.length),progress:0,media:0,nextMedia:0,dissolve:0});
   const contentProgress = useMotionValue(0);
   const [staged,setStaged] = useState(false), [chapterIndex,setChapterIndex] = useState(0);
   const [menu,setMenu] = useState(false), [detail,setDetail] = useState(null), [detailInstant,setDetailInstant] = useState(false);
@@ -68,13 +70,77 @@ export default function Portfolio({ sections, profile }) {
     if (root.current) root.current.dataset.visualScroll = value.toFixed(2);
     contentProgress.set(clamp((next.index+next.progress)/ids.length));
   },[state,contentProgress,ids.length]);
-  useMotionValueEvent(scrollY,'change',value => {
-    if (reducedMotion || !staged) visualY.jump(value);
-    else visualY.set(value);
-  });
+  useEffect(() => {
+    let held = false, touchY = null, forward = true;
+    const interrupt = () => {
+      if (automatic.current) window.scrollTo({top:visualY.get(),behavior:'instant'});
+      else if (navigationTarget.current !== null) window.scrollTo({top:window.scrollY,behavior:'instant'});
+      automatic.current = null; navigationTarget.current = null;
+    };
+    const follow = ({delta}) => {
+      let target = window.scrollY;
+      const blocked = menu || detail || document.documentElement.style.overflow === 'hidden';
+      if (blocked) automatic.current = null;
+      if (forward && !held && !automatic.current && navigationTarget.current === null && !blocked) {
+        automatic.current = revealContinuation(visualY.get(),target,starts.current,extent.current);
+      }
+      const continuation = automatic.current;
+      if (continuation && !held) {
+        continuation.position = advanceReveal(continuation.position,continuation.target,extent.current,delta);
+        window.scrollTo({top:continuation.position,behavior:'instant'});
+        target = window.scrollY;
+      }
+      const next = followScroll(visualY.get(),target,delta);
+      visualY.set(next);
+      if (continuation && continuation.position === continuation.target && next === target) automatic.current = null;
+      if (navigationTarget.current !== null && Math.abs(next-navigationTarget.current)<1) navigationTarget.current = null;
+      if (root.current) root.current.dataset.autoReveal = String(Boolean(automatic.current));
+      if (next === target && (!automatic.current || held)) cancelFrame(follow);
+    };
+    if (reducedMotion || !staged) visualY.jump(scrollY.get());
+    const unsubscribe = scrollY.on('change',value => {
+      if (reducedMotion || !staged) visualY.jump(value);
+      else frame.update(follow,true);
+    });
+    const wheel = event => {
+      if (event.ctrlKey) return;
+      if (automatic.current) { event.preventDefault(); event.stopPropagation(); return; }
+      if (!event.deltaY) return;
+      if (event.deltaY < 0 || navigationTarget.current !== null) interrupt();
+      forward = event.deltaY > 0;
+    };
+    const press = event => {
+      if (event.pointerType !== 'mouse') return;
+      interrupt(); held = true; forward = true;
+    };
+    const release = () => { held = false; touchY = null; if (automatic.current) frame.update(follow,true); };
+    const touchStart = event => { interrupt(); held = true; forward = true; touchY = event.touches[0]?.clientY ?? null; };
+    const touchMove = event => {
+      const y = event.touches[0]?.clientY;
+      if (touchY !== null && y !== undefined && y !== touchY) {
+        forward = y < touchY;
+        if (!forward) interrupt();
+      }
+      touchY = y ?? null;
+    };
+    const key = event => { interrupt(); forward = !event.shiftKey && ['ArrowDown','PageDown','End',' '].includes(event.key); };
+    const hidden = () => { if (document.hidden) { interrupt(); cancelFrame(follow); } };
+    window.addEventListener('wheel',wheel,{capture:true,passive:false});
+    window.addEventListener('pointerdown',press,{passive:true}); window.addEventListener('pointerup',release,{passive:true});
+    window.addEventListener('touchstart',touchStart,{passive:true}); window.addEventListener('touchmove',touchMove,{passive:true}); window.addEventListener('touchend',release,{passive:true}); window.addEventListener('touchcancel',release,{passive:true});
+    window.addEventListener('keydown',key); document.addEventListener('visibilitychange',hidden);
+    return () => {
+      unsubscribe(); cancelFrame(follow); automatic.current = null;
+      if (root.current) delete root.current.dataset.autoReveal;
+      window.removeEventListener('wheel',wheel,true); window.removeEventListener('pointerdown',press); window.removeEventListener('pointerup',release);
+      window.removeEventListener('touchstart',touchStart); window.removeEventListener('touchmove',touchMove); window.removeEventListener('touchend',release); window.removeEventListener('touchcancel',release);
+      window.removeEventListener('keydown',key); document.removeEventListener('visibilitychange',hidden);
+    };
+  },[scrollY,visualY,reducedMotion,staged,state,menu,detail]);
   useMotionValueEvent(visualY,'change',update);
-  const syncScroll = useCallback(value => { visualY.jump(value); update(value); },[visualY,update]);
-  useChapterNavigation({root,starts,extent,sections,staged,reducedMotion,state,syncScroll});
+  const syncScroll = useCallback(value => { automatic.current = null; navigationTarget.current = null; visualY.jump(value); update(value); },[visualY,update]);
+  const onNavigate = useCallback(top => { automatic.current = null; navigationTarget.current = top; },[]);
+  useChapterNavigation({root,starts,extent,sections,staged,reducedMotion,state,syncScroll,onNavigate});
   useEffect(()=>{
     if (!entranceOpening) return;
     const top = staged ? readingOffset(0,starts.current,extent.current) : 0;
@@ -137,13 +203,14 @@ export default function Portfolio({ sections, profile }) {
   function changeActivity(item, keyboard = false) { setDetail(item); setDetailInstant(keyboard); }
   function moveDetail(direction, event) { setDetailInstant(event.detail === 0); setDetail(details[(detailIndex + direction + details.length) % details.length]); dialog.current.scrollTop = 0; }
   const firstId = sections[0]?.id || 'main';
-  return <div ref={root} className={styles.portfolio} style={{'--chapter-length':`${CHAPTER_DISTANCE*100}svh`}} data-enhanced={staged} data-staged={staged} data-native-scroll="true" data-ready={staged} data-paused={paused} data-cover={onCover} data-active-kind={sections[active]?.kind}>
+  return <div ref={root} className={styles.portfolio} style={{'--chapter-length':`${CHAPTER_DISTANCE*100/2}svh`}} data-enhanced={staged} data-staged={staged} data-native-scroll="true" data-ready={staged} data-paused={paused} data-cover={onCover} data-active-kind={sections[active]?.kind}>
     <a className={styles.skip} href={`#${firstId}`}>본문으로 건너뛰기</a>
     <header className={styles.header}>
-      <a className={styles.brand} href="#preview" aria-label="포트폴리오 처음으로"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 10 16 4l11 6v12l-11 6L5 22Z M5 10l11 6 11-6M16 16v12M16 4v12M5 22l11-6 11 6" /></svg><span>{profile.name || 'Portfolio'}<small>Ideas in motion</small></span></a>
-      <nav className={styles.quickNav} aria-label="주요 메뉴">{sections.filter((section) => ['about','projects','contact'].includes(section.id)).map((section) => <a key={section.id} href={`#${section.id}`}>{section.title}</a>)}</nav>
-      {staged && <button className={styles.playback} onClick={()=>setPaused(value=>!value)} aria-label={paused?'배경 움직임 재생':onCover?'배경 움직임 멈춤':'배경 프레임 고정'} aria-pressed={paused}><span aria-hidden="true">{paused?'▷':'Ⅱ'}</span><span>{paused?'배경 정지':onCover?'배경 움직임':'스크롤 연동'}</span></button>}
-      <button className={styles.menuButton} onClick={event => { menuDialog.current.dataset.instant = String(event.detail === 0); setMenu(true); }} aria-haspopup="dialog" aria-expanded={menu}>전체 메뉴 <span aria-hidden="true">☰</span></button>
+      <a className={styles.brand} href="#preview" aria-label="포트폴리오 처음으로"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11"/><circle cx="16" cy="16" r="6"/><path d="M16 1v7m0 16v7M1 16h7m16 0h7M11 21l10-10"/></svg><span>{profile.name || 'Portfolio'}</span></a>
+      <div className={styles.headerActions}>
+        {staged && <button className={styles.playback} onClick={()=>setPaused(value=>!value)} aria-label={paused?'배경 움직임 재생':onCover?'배경 움직임 멈춤':'배경 프레임 고정'} aria-pressed={paused}><svg viewBox="0 0 24 24" aria-hidden="true">{paused ? <path d="m9 6 9 6-9 6Z"/> : <path d="M9 6v12M15 6v12"/>}</svg><span className={styles.controlHint}>{paused?'배경 움직임 재생':'배경 움직임 멈춤'}</span></button>}
+        <button className={styles.menuButton} onClick={event => { menuDialog.current.dataset.instant = String(event.detail === 0); setMenu(true); }} aria-label="전체 메뉴" aria-haspopup="dialog" aria-expanded={menu}>목차 <svg viewBox="0 0 28 20" aria-hidden="true"><path d="M2 5h24M2 15h16"/></svg></button>
+      </div>
     </header>
     {staged && <SceneBackdrop profile={profile} ids={ids} state={state} paused={paused} reduced={reducedMotion}/>}
     <main id="main" className={styles.main}>
@@ -155,13 +222,17 @@ export default function Portfolio({ sections, profile }) {
       {!sections.length && <p className={styles.empty}>새로운 이야기를 준비하고 있습니다.</p>}
     </main>
 
-    <nav className={styles.rail} aria-label="섹션 탐색">{sections.map((section, index) => <a key={section.id} href={`#${section.id}`} aria-label={section.title} aria-current={!onCover && active === index ? 'location' : undefined}><span>{section.title}</span><i /></a>)}</nav>
-    <div className={styles.bottomBar}><span>스크롤하여 이야기 펼치기 <span aria-hidden="true">↓</span></span><nav className={styles.stepNav} aria-label="이전 다음 섹션">{active > 0 ? <a href={`#${sections[active - 1].id}`} aria-label={`이전 섹션: ${sections[active - 1].title}`}>↑</a> : <span aria-hidden="true">↑</span>}<span>{onCover ? '프롤로그' : sections[active]?.title} <b>{String(onCover ? 0 : active+1).padStart(2,'0')}</b><span className={styles.total}> / {String(sections.length).padStart(2,'0')}</span></span>{active < sections.length - 1 ? <a href={`#${onCover ? firstId : sections[active + 1].id}`} aria-label={`다음 섹션: ${onCover ? sections[0].title : sections[active + 1].title}`}>↓</a> : <span aria-hidden="true">↓</span>}</nav></div>
-    <motion.div className={styles.progress} style={{ scaleX: contentProgress }} />
+    <nav className={styles.chapterNav} aria-label="이전 다음 섹션">
+      <div className={styles.chapterPosition}><span className={styles.chapterNumber}>{String(chapterIndex).padStart(2,'0')}<small> / {String(sections.length).padStart(2,'0')}</small></span><span className={styles.chapterName}>{onCover ? '프롤로그' : sections[active]?.title}</span><span className={styles.chapterProgress} aria-hidden="true"><motion.i style={{ scaleX: contentProgress }}/></span></div>
+      <div className={styles.chapterArrows}>
+        {onCover ? <button disabled aria-label="이전 섹션 없음">↑</button> : <a href={`#${active > 0 ? sections[active - 1].id : 'preview'}`} aria-label={`이전 섹션: ${active > 0 ? sections[active - 1].title : '프롤로그'}`}>↑</a>}
+        {chapterIndex < sections.length ? <a href={`#${onCover ? firstId : sections[active + 1].id}`} aria-label={`다음 섹션: ${onCover ? sections[0].title : sections[active + 1].title}`}>↓</a> : <button disabled aria-label="다음 섹션 없음">↓</button>}
+      </div>
+    </nav>
     <footer className={styles.footer}><span>{profile.name || 'Portfolio'} / 계속 만들어가는 기록</span><div>{profile.email && <a href={`mailto:${profile.email}`}>이메일</a>}{profile.cv && <a href={assetUrl(profile.cv)}>CV 다운로드</a>}{profile.links.map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label}</a>)}</div><span>콘텐츠 초안</span></footer>
     <dialog ref={menuDialog} className={styles.menuDialog} onCancel={event=>{event.preventDefault();closeMenu(event);}} onClose={() => setMenu(false)} aria-labelledby="menu-title" onClick={(event) => { if (event.target === event.currentTarget) closeMenu(event); }}>
-      <div className={styles.menuContent}><div className={styles.dialogTop}><h2 id="menu-title">Explore the portfolio.</h2><button onClick={closeMenu} aria-label="메뉴 닫기">×</button></div>
-        <nav aria-label="전체 섹션">{sections.map((section, index) => <a key={section.id} href={`#${section.id}`} onClick={closeMenu} style={{ transitionDelay: `${Math.min(index, 5) * 30}ms` }}><span>{String(index + 1).padStart(2,'0')}</span>{section.title}<span aria-hidden="true">↗</span></a>)}</nav>
+      <div className={styles.menuContent}><div className={styles.dialogTop}><h2 id="menu-title">목차</h2><button onClick={closeMenu} aria-label="메뉴 닫기">×</button></div>
+        <nav aria-label="전체 섹션">{[{id:'preview',title:'프롤로그'},...sections].map((section, index) => <a key={section.id} href={`#${section.id}`} onClick={closeMenu} aria-current={chapterIndex === index ? 'location' : undefined} style={{ transitionDelay: `${Math.min(index, 5) * 30}ms` }}><span>{String(index).padStart(2,'0')}</span>{section.title}<span aria-hidden="true">↗</span></a>)}</nav>
       </div>
     </dialog>
     <dialog ref={dialog} className={styles.detailDialog} data-detail-kind={detailSection?.kind} data-instant={detailInstant} aria-labelledby="detail-title" onCancel={event=>{event.preventDefault();closeDetail(event);}} onClose={() => { setDetail(null); trigger.current?.focus({preventScroll:true}); }} onClick={(event) => { if (event.target === event.currentTarget) closeDetail(event); }}>
