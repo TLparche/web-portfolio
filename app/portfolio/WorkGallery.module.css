@@ -112,7 +112,7 @@
   .categories small,.categories button[aria-selected=true] small { display:none; }
   .categories button[aria-selected=true]::after { right:7px; }
   .listView { inset:108px 0 25px; }
-  .ribbons { display:flex; gap:0; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x mandatory; scrollbar-width:thin; padding:0 12%; pointer-events:auto; }
+  .ribbons { display:flex; gap:0; overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain; scroll-snap-type:x mandatory; scrollbar-width:thin; padding:0 12%; pointer-events:auto; }
   .ribbon { position:relative; inset:auto; flex:0 0 82%; height:100%; scroll-snap-align:center; transform:none!important; }
   .ribbonShift { transform:none!important; }
   .card { clip-path:polygon(38% 4%,100% 4%,62% 90%,0 90%)!important; }

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { revealAt } from './chapter-timeline.mjs';
+import { componentReveal, revealAt } from './chapter-timeline.mjs';
+import { dissolveTone } from './dissolve.mjs';
 
 export default function ScrollPanel({ index, state, staged, reduced, className, children }) {
   const ref = useRef(null);
@@ -17,7 +18,9 @@ export default function ScrollPanel({ index, state, staged, reduced, className, 
       const shown = opacity > .05;
       const dissolving = active && scene.dissolve > 0;
       const interactive = shown && !dissolving;
+      const tone = active && !reduced ? dissolveTone(scene.dissolve) : 0;
       node.style.opacity = String(opacity * (active ? 1-scene.dissolve : 1));
+      node.style.filter = tone ? `grayscale(${tone}) brightness(${1-.2*tone})` : '';
       node.style.visibility = opacity > .001 ? 'visible' : 'hidden';
       node.style.contentVisibility = Math.abs(scene.index-index)>1 ? 'hidden' : '';
       node.style.pointerEvents = interactive ? 'auto' : 'none';
@@ -30,16 +33,16 @@ export default function ScrollPanel({ index, state, staged, reduced, className, 
       }
       for (const element of nodes) {
         const group = Number(element.dataset.reveal) || 0;
-        const value = reduced ? 1 : revealAt(progress,group);
-        element.style.opacity = String(value);
-        element.style.transform = reduced ? 'none' : `translateY(${(1-value)*14}px)`;
+        const style = componentReveal(progress, group, element.dataset.revealKind, reduced, element.dataset.revealPhase);
+        Object.assign(element.style, style);
+        element.inert = style.opacity !== '' && Number(style.opacity) < .12;
       }
     };
     const scan = () => { nodes = [...node.querySelectorAll('[data-reveal]')]; paint(); };
     scan();
     const unsubscribe = state.on('change',paint);
     const observer = new MutationObserver(scan); observer.observe(node,{childList:true,subtree:true});
-    return () => { unsubscribe(); observer.disconnect(); node.style.contentVisibility=''; node.style.opacity=''; node.style.visibility=''; node.style.pointerEvents=''; node.inert=false; node.removeAttribute('aria-hidden'); delete node.dataset.dissolving; nodes.forEach(el=>{el.style.opacity='';el.style.transform='';}); };
+    return () => { unsubscribe(); observer.disconnect(); node.style.contentVisibility=''; node.style.opacity=''; node.style.filter=''; node.style.visibility=''; node.style.pointerEvents=''; node.inert=false; node.removeAttribute('aria-hidden'); delete node.dataset.dissolving; nodes.forEach(el=>{el.style.opacity='';el.style.translate='';el.style.clipPath='';el.inert=false;}); };
   },[index,state,staged,reduced]);
   return <div ref={ref} className={className} data-panel data-scroll-panel data-visible={visible}>{typeof children === 'function' ? children(visible) : children}</div>;
 }

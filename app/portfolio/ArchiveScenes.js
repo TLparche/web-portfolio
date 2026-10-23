@@ -14,19 +14,19 @@ function Artwork({ visual, className = '', eager = false }) {
 }
 
 function ChapterLabel({ chapter, children }) {
-  return <div className={styles.chapter}><span>{chapter}</span><div>{children}</div></div>;
+  return <div className={styles.chapter} data-reveal="0" data-reveal-kind="line" data-reveal-phase="surface"><span data-reveal="0">{chapter}</span><div data-reveal="0">{children}</div></div>;
 }
 
 export function ArchiveCover({ profile, firstId }) {
   return <div className={`${styles.scene} ${styles.cover}`} style={paper}>
     <Artwork visual={profile.visuals?.landing} className={styles.coverArt} eager/>
     <div className={styles.coverCopy}>
-      <p className={styles.eyebrow}>{profile.role || 'Personal portfolio'}</p>
-      <h1 id="preview-name" data-reveal="0">{profile.name || '이름 / 닉네임'}</h1>
+      <p className={styles.eyebrow} data-reveal="0" data-reveal-kind="line">{profile.role || 'Personal portfolio'}</p>
+      <h1 id="preview-name" data-reveal=".5" data-reveal-kind="title">{profile.name || '이름 / 닉네임'}</h1>
       <p className={styles.tagline} data-reveal="1">{profile.tagline || '생각을 움직이는 경험으로.'}</p>
-      <a className={styles.action} data-reveal="2" href={`#${firstId}`}>포트폴리오 살펴보기<ArrowUpRight size={22} weight="light" aria-hidden="true"/></a>
+      <a className={styles.action} data-reveal="2" data-reveal-kind="ticket" data-reveal-phase="surface" href={`#${firstId}`}><span data-reveal="2">포트폴리오 살펴보기</span><ArrowUpRight data-reveal="2" size={22} weight="light" aria-hidden="true"/></a>
     </div>
-    <p className={styles.coverNote}>작은 질문과 시도, 그 안에서 발견한 가능성.</p>
+    <p className={styles.coverNote} data-reveal="3.5">작은 질문과 시도, 그 안에서 발견한 가능성.</p>
   </div>;
 }
 
@@ -36,13 +36,14 @@ export function ArchiveIntro({ section, chapter, profile, projectId, researchId 
     <Artwork visual={profile.visuals?.about}/>
     <div className={styles.editorial} data-scene-scroll>
       <ChapterLabel chapter={chapter}>{section.title}</ChapterLabel>
-      <h2 id={`${section.id}-title`} className={styles.title} data-reveal="0">{section.headline}</h2>
+      <h2 id={`${section.id}-title`} className={styles.title} data-reveal=".5" data-reveal-kind="title">{section.headline}</h2>
       <p className={styles.body} data-reveal="1">{section.body}</p>
-      {section.facts?.length > 0 && <dl className={styles.facts} data-reveal="2">{section.facts.map((fact, index) => {
+      {section.facts?.length > 0 && <dl className={styles.facts}>{section.facts.map((fact, index) => {
         const Symbol = symbols[index % symbols.length];
-        return <div key={fact.label}><Symbol size={32} weight="thin" aria-hidden="true"/><dt>{fact.label}</dt><dd>{fact.value}</dd></div>;
+        const group = 2 + Math.min(index, 4) * .3;
+        return <div key={fact.label} data-reveal={group} data-reveal-kind="record" data-reveal-phase="surface"><Symbol data-reveal={group} size={32} weight="thin" aria-hidden="true"/><dt data-reveal={group}>{fact.label}</dt><dd data-reveal={group}>{fact.value}</dd></div>;
       })}</dl>}
-      <nav className={styles.textLinks} data-reveal="2" aria-label="작업과 연구">{projectId && <a href={`#${projectId}`}>작업·경험 보기<ArrowUpRight size={19} aria-hidden="true"/></a>}{researchId && <a href={`#${researchId}`}>연구 보기<ArrowUpRight size={19} aria-hidden="true"/></a>}</nav>
+      <nav className={styles.textLinks} data-reveal="3" data-reveal-kind="controls" aria-label="작업과 연구">{projectId && <a href={`#${projectId}`}>작업·경험 보기<ArrowUpRight size={19} aria-hidden="true"/></a>}{researchId && <a href={`#${researchId}`}>연구 보기<ArrowUpRight size={19} aria-hidden="true"/></a>}</nav>
     </div>
   </div>;
 }
@@ -51,8 +52,8 @@ function Records({ section }) {
   const records = section.groups?.flatMap(group => group.items.map(item => ({ ...item, group: group.title }))) || section.items;
   const stats = section.stats?.filter(stat => stat.value && stat.value !== '—');
   return <>
-    <div className={styles.records} data-reveal="1">
-      {records.map(item => <article className={styles.record} key={item.id}>
+    <div className={styles.records}>
+      {records.map((item, index) => <article className={styles.record} key={item.id} data-reveal={1.5 + Math.min(index, 5) * .35} data-reveal-kind="record" data-reveal-phase="surface"><div data-reveal={1.5 + Math.min(index, 5) * .35}>
         {item.group && <p className={styles.recordGroup}>{item.group}</p>}
         <h4>{item.title}</h4>
         {(item.period || item.date || item.year) && <p className={styles.recordPeriod}>{item.period || item.date || item.year}</p>}
@@ -62,11 +63,11 @@ function Records({ section }) {
         {Number.isFinite(item.level) && <p>숙련도 {Math.max(0, Math.min(100, item.level))}%</p>}
         {item.badge && item.badge !== '—' && <small className={styles.badge}>{item.badge}</small>}
         {item.links?.filter(link => link.url).map(link => <a className={styles.recordLink} key={link.url} href={link.url.startsWith('/') ? assetUrl(link.url) : link.url} target={/^https?:/.test(link.url) ? '_blank' : undefined} rel="noreferrer">{link.label}<ArrowUpRight size={16} aria-hidden="true"/></a>)}
-      </article>)}
+      </div></article>)}
       {!records.length && <p className={styles.body} data-reveal="1">기록을 준비하고 있습니다.</p>}
     </div>
-    {stats?.length > 0 && <dl className={styles.stats}>{stats.map(stat => <div key={stat.label}><dt>{stat.label}</dt><dd>{stat.value} <small>{stat.suffix}</small></dd></div>)}</dl>}
-    {section.toolbox?.length > 0 && <p className={styles.toolbox}>{section.toolbox.join(' · ')}</p>}
+    {stats?.length > 0 && <dl className={styles.stats} data-reveal="3" data-reveal-kind="controls">{stats.map(stat => <div key={stat.label}><dt>{stat.label}</dt><dd>{stat.value} <small>{stat.suffix}</small></dd></div>)}</dl>}
+    {section.toolbox?.length > 0 && <p className={styles.toolbox} data-reveal="3.5">{section.toolbox.join(' · ')}</p>}
   </>;
 }
 
@@ -76,13 +77,13 @@ export function ArchiveEducation({ section, chapter, profile }) {
   return <div className={`${styles.scene} ${styles.archive}`} style={paper} data-copy data-archive-scene="education" data-chapter-group={section.id}>
     <Artwork visual={profile.visuals?.education} className={styles.archiveArt}/>
     <ChapterTabs section={section} {...state} vertical className={styles.archiveTabs}/>
-    <p className={styles.archiveWord} aria-hidden="true">ARCHIVE</p>
+    <p className={styles.archiveWord} data-reveal="0" aria-hidden="true">ARCHIVE</p>
     <div className={styles.archiveContent}>
       <ChapterLabel chapter={chapter}><h2 id={`${section.id}-title`}>이력·역량</h2></ChapterLabel>
       {state.chapters.map((part, index) => <section key={part.id} id={`${section.id}-category-panel-${part.id}`} role="tabpanel" aria-labelledby={`${section.id}-category-${part.id}`} hidden={index !== state.selected} tabIndex={0} className={styles.recordPanel} data-scene-scroll>
         {part.id !== section.id && <span id={part.id}/>}
-        <h3 className={styles.recordTitle} data-reveal="0">{labels[part.kind] || part.title}</h3>
-        <p className={styles.recordIntro}>{part.body}</p>
+        <h3 className={styles.recordTitle} data-reveal=".5" data-reveal-kind="title">{labels[part.kind] || part.title}</h3>
+        <p className={styles.recordIntro} data-reveal="1">{part.body}</p>
         <Records section={part}/>
       </section>)}
     </div>
@@ -97,16 +98,16 @@ export function ArchiveContact({ section, chapter, profile, firstId }) {
     <Artwork visual={profile.visuals?.contact}/>
     <div className={styles.editorial} data-scene-scroll>
       <ChapterLabel chapter={chapter}>{section.title}</ChapterLabel>
-      <h2 id={`${section.id}-title`} className={styles.title} data-reveal="0">{section.display}</h2>
+      <h2 id={`${section.id}-title`} className={styles.title} data-reveal=".5" data-reveal-kind="title">{section.display}</h2>
       <p className={styles.body} data-reveal="1">{section.headline}<br/>{section.body}</p>
-      {email ? <a className={styles.action} data-reveal="2" href={`mailto:${email}`}>이메일 보내기<ArrowUpRight size={22} weight="light" aria-hidden="true"/></a> : <div className={`${styles.action} ${styles.pending}`}><span>이메일</span><small>준비 중</small></div>}
-      {email && <p className={styles.email}>{email}</p>}
-      <div className={styles.contactLinks}>
+      {email ? <a className={styles.action} data-reveal="2" data-reveal-kind="ticket" data-reveal-phase="surface" href={`mailto:${email}`}><span data-reveal="2">이메일 보내기</span><ArrowUpRight data-reveal="2" size={22} weight="light" aria-hidden="true"/></a> : <div className={`${styles.action} ${styles.pending}`} data-reveal="2" data-reveal-kind="ticket" data-reveal-phase="surface"><span data-reveal="2">이메일</span><small data-reveal="2">준비 중</small></div>}
+      {email && <p className={styles.email} data-reveal="2.5">{email}</p>}
+      <div className={styles.contactLinks} data-reveal="3" data-reveal-kind="controls">
         {cv ? <a href={assetUrl(cv)}>이력서 보기<ArrowDown size={17} aria-hidden="true"/></a> : <span>이력서 <small>준비 중</small></span>}
         {links.length ? links.map(link => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label}<ArrowUpRight size={17} aria-hidden="true"/></a>) : <span>공개 채널 <small>준비 중</small></span>}
       </div>
-      <a className={styles.back} href={`#${firstId}`}>처음으로<ArrowUp size={17} aria-hidden="true"/></a>
+      <a className={styles.back} data-reveal="3.5" data-reveal-kind="controls" href={`#${firstId}`}>처음으로<ArrowUp size={17} aria-hidden="true"/></a>
     </div>
-    <p className={styles.contactWord} aria-hidden="true">CONTACT</p>
+    <p className={styles.contactWord} aria-hidden="true"><span data-reveal="0">CONTACT</span></p>
   </div>;
 }

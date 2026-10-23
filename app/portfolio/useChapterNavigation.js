@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { sectionForAnchor } from './config.mjs';
 import { readingOffset } from './chapter-timeline.mjs';
 
-export default function useChapterNavigation({ root, starts, extent, sections, staged, reducedMotion, state, syncScroll }) {
+export default function useChapterNavigation({ root, starts, extent, sections, staged, reducedMotion, state, syncScroll, onNavigate }) {
   useEffect(() => {
     let ownHash = false;
     const navigate = (id, instant = false, write = true) => {
@@ -16,6 +16,7 @@ export default function useChapterNavigation({ root, starts, extent, sections, s
       }
       if(staged){
         const top=readingOffset(index,starts.current,extent.current);
+        onNavigate(top);
         window.scrollTo({top,behavior:instant || reducedMotion ? 'instant' : 'smooth'});
         if(instant || reducedMotion)syncScroll(window.scrollY);
       }
@@ -38,5 +39,5 @@ export default function useChapterNavigation({ root, starts, extent, sections, s
     const node = root.current;
     node?.addEventListener('click',click); window.addEventListener('hashchange',hash); window.addEventListener('keydown',key);
     return () => { node?.removeEventListener('click',click); window.removeEventListener('hashchange',hash); window.removeEventListener('keydown',key); };
-  },[root,starts,extent,sections,staged,reducedMotion,state,syncScroll]);
+  },[root,starts,extent,sections,staged,reducedMotion,state,syncScroll,onNavigate]);
 }

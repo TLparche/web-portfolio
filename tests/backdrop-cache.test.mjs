@@ -4,6 +4,7 @@ import { createBackdropRenderer } from '../app/portfolio/backdrop-renderer.mjs';
 
 test('adjacent and reversed chapters reuse uploads; video revisions refresh and GPU memory stays bounded', () => {
   let uploads = 0;
+  const tones = [];
   const live = new Set();
   const gl = new Proxy({
     createTexture() { const texture = {}; live.add(texture); return texture; },
@@ -11,6 +12,8 @@ test('adjacent and reversed chapters reuse uploads; video revisions refresh and 
     texImage2D(...args) { if(args.length===6)uploads++; },
     getShaderParameter: () => true,
     getProgramParameter: () => true,
+    getUniformLocation: (_,name) => name,
+    uniform1f(name,value) { if(name==='outgoingTone')tones.push(value); },
   }, { get: (target, key) => target[key] ?? (() => ({})) });
   const density = globalThis.devicePixelRatio;
   globalThis.devicePixelRatio = 1;
@@ -27,6 +30,12 @@ test('adjacent and reversed chapters reuse uploads; video revisions refresh and 
     draw(a,b); assert.equal(uploads,3);
     b.revision++; draw(a,b); assert.equal(uploads,4);
     draw(d,e); assert.equal(live.size,4); // Three media textures plus the fixed dissolve field.
+    for(const blend of [0,.1,.35,.75,0])renderer.draw(d,e,blend,false,1280,720);
+    assert.equal(tones.at(-5),0);
+    assert.ok(tones.at(-4)>0 && tones.at(-4)<1);
+    assert.equal(tones.at(-3),1);
+    assert.equal(tones.at(-2),1);
+    assert.equal(tones.at(-1),0);
     renderer.dispose(); assert.equal(live.size,0);
   } finally {
     if (density === undefined) delete globalThis.devicePixelRatio;

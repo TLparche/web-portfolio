@@ -4,7 +4,7 @@ import { assetUrl } from './config.mjs';
 import { visualFor } from './chapter-timeline.mjs';
 import { videoFrameTime } from './timeline.mjs';
 import { createBackdropRenderer } from './backdrop-renderer.mjs';
-import { DISSOLVE_FEATHER } from './dissolve.mjs';
+import { DISSOLVE_FEATHER, dissolveTone } from './dissolve.mjs';
 import styles from './SceneBackdrop.module.css';
 import { ScenePreparationContext } from './LoadingGate';
 
@@ -92,11 +92,13 @@ export default function SceneBackdrop({ profile, ids, state, paused, reduced }) 
         }
       });
       const blend=latest.current.reduced?0:scene.dissolve;
+      const tone=dissolveTone(blend);
       [a,b].forEach((entry,index)=>{
         const img=fallbacks[index], url=entry.posterUrl;
         if(img.getAttribute('src')!==url)img.src=url;
         img.style.objectPosition=(innerWidth<700?entry.visual.mobilePosition:null)||entry.visual.position||'50% 50%';
         img.style.objectFit=entry.visual.fit||'cover';img.style.opacity=String(index?blend:1);
+        img.style.filter=!index&&tone?`grayscale(${tone}) brightness(${1-.2*tone})`:'';
         img.style.transform=latest.current.reduced?'none':`scale(${1.04+.08*entry.progress}) translateY(${(entry.progress-.5)*-2}%)`;
       });
       if(!a.source)canvas.style.opacity='0';

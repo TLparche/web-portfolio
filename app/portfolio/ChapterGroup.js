@@ -56,7 +56,7 @@ export function ChapterTabs({section,chapters,selected,choose,className='',insta
     observer.observe(tabs.current);
     return () => observer.disconnect();
   }, [selected,section,instant,reduced]);
-  return <div ref={tabs} className={`${styles.tabs} ${className}`} data-instant={instant} role="tablist" aria-orientation={vertical&&!narrow?'vertical':'horizontal'} aria-label={`${section.title} 분류`} onKeyDown={event=>selectKey(event,selected,chapters.length,choose)}>
+  return <div ref={tabs} className={`${styles.tabs} ${className}`} data-reveal="2" data-reveal-kind="controls" data-instant={instant} role="tablist" aria-orientation={vertical&&!narrow?'vertical':'horizontal'} aria-label={`${section.title} 분류`} onKeyDown={event=>selectKey(event,selected,chapters.length,choose)}>
     {chapters.map((part,index)=><button key={part.id} role="tab" id={`${section.id}-category-${part.id}`} aria-controls={`${section.id}-category-panel-${part.id}`} aria-selected={selected===index} tabIndex={selected===index?0:-1} onClick={event=>choose(index,event.detail===0)}>{part.title}<span className={styles.count}>{String(part.showcaseItems?.length ?? (part.items?.length || part.groups?.reduce((sum,group)=>sum+group.items.length,0) || 0)).padStart(2,'0')}</span></button>)}
     <span className={styles.indicator} aria-hidden="true" style={{transform:`translateX(${indicator.left}px) scaleX(${indicator.width/100})`}}/>
   </div>;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CHAPTER_DISTANCE, DISSOLVE_START, READING_POSITION, sampleChapter, revealAt, readingOffset, visualFor } from '../app/portfolio/chapter-timeline.mjs';
+import { CHAPTER_DISTANCE, DISSOLVE_START, READING_POSITION, sampleChapter, revealAt, componentReveal, readingOffset, visualFor } from '../app/portfolio/chapter-timeline.mjs';
 import { videoFrameTime } from '../app/portfolio/timeline.mjs';
 import { validateContent } from '../scripts/validate-content.mjs';
 import content from '../content/portfolio.json' with {type:'json'};
@@ -17,11 +17,13 @@ test('native distance is proportional, reversible, and has no automatic finishin
   assert.ok(frames[4].dissolve>0&&frames[4].dissolve<1);
 });
 test('each chapter reveals in order and holds its composed content throughout the dissolve',()=>{
-  assert.equal(revealAt(.26/CHAPTER_DISTANCE),0);
-  assert.ok(revealAt(.36/CHAPTER_DISTANCE,0)>revealAt(.36/CHAPTER_DISTANCE,1));
-  for(const group of [0,1,2])assert.equal(revealAt(.56/CHAPTER_DISTANCE,group),1);
+  assert.equal(revealAt(.01/CHAPTER_DISTANCE),0);
+  assert.ok(revealAt(.2/CHAPTER_DISTANCE,0)>revealAt(.2/CHAPTER_DISTANCE,1));
+  assert.equal(componentReveal(.2/CHAPTER_DISTANCE,0,'title').opacity,'0');
+  assert.ok(Number(componentReveal(.2/CHAPTER_DISTANCE,0,'diagonal',false,'surface').opacity)>0);
+  for(const group of [0,1,2])assert.equal(revealAt(.65/CHAPTER_DISTANCE,group),1);
   assert.equal(revealAt(DISSOLVE_START),1);
-  assert.equal(sampleChapter(1440,starts,extent).dissolve,0);
+  assert.ok(sampleChapter(1440,starts,extent).dissolve<1e-8);
   const next=sampleChapter(extent,starts,extent);
   assert.equal(next.index,1);assert.ok(next.media>0);assert.equal(next.progress,0);
   assert.equal(revealAt(next.progress),0);
@@ -35,6 +37,59 @@ test('direct links and resized viewports resolve to the reading position',()=>{
     assert.ok(Math.abs(a.progress-READING_POSITION)<1e-8);assert.deepEqual(a,b);
   }
 });
+
+test('component entrances reverse exactly and release their styles before reading and dissolving',()=>{
+  const rest = {opacity:'', translate:'', clipPath:''};
+  for(const kind of ['title','text','line','diagonal','ribbon-up','ribbon-down','ticket','record','controls']) {
+    for(const group of [0,.5,1,2,3.25,3.5,4]) {
+      for(const phase of ['surface','content']) {
+        assert.equal(componentReveal(0,group,kind,false,phase).opacity,'0');
+        const distances=[.26,.42,.6,.67,.72,.81];
+        const forward=distances.map(distance=>componentReveal(distance/CHAPTER_DISTANCE,group,kind,false,phase));
+        const reverse=distances.toReversed().map(distance=>componentReveal(distance/CHAPTER_DISTANCE,group,kind,false,phase)).reverse();
+        assert.deepEqual(forward,reverse);
+        for(const progress of [READING_POSITION,DISSOLVE_START,.85,1])assert.deepEqual(componentReveal(progress,group,kind,false,phase),rest);
+        assert.deepEqual(componentReveal(0,group,kind,true,phase),rest);
+      }
+    }
+  }
+});
+
+test('shape reveals stagger without replacing the original silhouette or hover transform',()=>{
+  const progress=.45/CHAPTER_DISTANCE;
+  assert.ok(Number(componentReveal(progress,.5,'ribbon-up',false,'surface').opacity)>Number(componentReveal(progress,3.25,'ribbon-down',false,'surface').opacity));
+  const up=componentReveal(progress,.5,'ribbon-up',false,'surface'), down=componentReveal(progress,.5,'ribbon-down',false,'surface');
+  assert.deepEqual(up.translate.split(' ').map(parseFloat), down.translate.split(' ').map(value=>-parseFloat(value)));
+  assert.match(componentReveal(progress,0,'title').clipPath,/^inset/);
+  assert.match(componentReveal(progress,0,'diagonal').clipPath,/^polygon/);
+  for(const kind of ['ticket','ribbon-up','ribbon-down','controls']) {
+    const style=componentReveal(progress,0,kind);
+    assert.equal(style.clipPath,'');
+    assert.equal(Object.hasOwn(style,'transform'),false);
+  }
+});
+
+test('each surface reveals its own content immediately after settling, without waiting for later surfaces',()=>{
+  const groups=[0,.5,1,2,3,3.5,4];
+  for(let distance=0;distance<=.81;distance+=.001) {
+    const progress=distance/CHAPTER_DISTANCE;
+    for(const group of groups) {
+      const content=componentReveal(progress,group,'text');
+      if(content.opacity==='' || Number(content.opacity)>0)
+        assert.equal(componentReveal(progress,group,'record',false,'surface').opacity,'');
+    }
+  }
+  for(const group of groups) {
+    const settled=.04 + group*.035 + .55;
+    assert.equal(componentReveal(settled/CHAPTER_DISTANCE,group,'text').opacity,'0');
+    assert.ok(Number(componentReveal((settled+.001)/CHAPTER_DISTANCE,group,'text').opacity)>0);
+    assert.equal(componentReveal((settled+.071)/CHAPTER_DISTANCE,group,'text').opacity,'');
+  }
+  const overlapping=.63/CHAPTER_DISTANCE;
+  assert.ok(Number(componentReveal(overlapping,0,'title').opacity)>0);
+  assert.ok(Number(componentReveal(overlapping,3.5,'record',false,'surface').opacity)<1);
+  assert.equal(componentReveal(overlapping,3.5,'controls').opacity,'0');
+});
 test('media starts in the preceding dissolve and reaches the last valid frame at its own end',()=>{
   assert.equal(videoFrameTime(sampleChapter(1440,starts,extent).nextMedia,10,30),0);
   assert.equal(videoFrameTime(sampleChapter(extent-.001,starts,extent).media,10,30),299/30);
@@ -42,14 +97,15 @@ test('media starts in the preceding dissolve and reaches the last valid frame at
   assert.equal(videoFrameTime(1,0,30),0);
   assert.equal(visualFor(content.profile,'preview').src,content.profile.visuals.landing.src);
 });
-test('dissolve takes a full viewport without shortening the reading passage',()=>{
-  const begin=sampleChapter(1440,starts,extent), middle=sampleChapter(1940,starts,extent);
-  assert.equal(begin.dissolve,0);assert.ok(begin.media<1);
+test('dissolve advances at half speed over two viewports without shortening the reading passage',()=>{
+  const begin=sampleChapter(1440,starts,extent), middle=sampleChapter(2440,starts,extent);
+  assert.ok(begin.dissolve<1e-8);assert.ok(begin.media<1);
   assert.ok(middle.media>begin.media);assert.ok(middle.nextMedia>begin.nextMedia);
   assert.ok(Math.abs(middle.dissolve-.5)<1e-8);
-  assert.equal(sampleChapter(2440,starts,extent).index,1);
+  assert.ok(Math.abs(sampleChapter(1940,starts,extent).dissolve-.25)<1e-8);
+  assert.equal(sampleChapter(3440,starts,extent).index,1);
   assert.ok(Math.abs(readingOffset(0,starts,extent)-810)<1e-8);
-  for (const position of [1600,1940,2300]) {
+  for (const position of [1600,2440,3300]) {
     assert.ok(sampleChapter(position,starts,extent).dissolve>0);
     for(const group of [0,1,2])assert.equal(revealAt(sampleChapter(position,starts,extent).progress,group),1);
   }
