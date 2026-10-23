@@ -23,7 +23,7 @@ test('each chapter reveals in order and holds its composed content throughout th
   assert.equal(revealAt(DISSOLVE_START),1);
   assert.equal(sampleChapter(1440,starts,extent).dissolve,0);
   const next=sampleChapter(extent,starts,extent);
-  assert.equal(next.index,1);assert.equal(next.media,0);assert.equal(next.progress,0);
+  assert.equal(next.index,1);assert.ok(next.media>0);assert.equal(next.progress,0);
   assert.equal(revealAt(next.progress),0);
   assert.equal(revealAt(1,2),1);
 });
@@ -35,15 +35,17 @@ test('direct links and resized viewports resolve to the reading position',()=>{
     assert.ok(Math.abs(a.progress-READING_POSITION)<1e-8);assert.deepEqual(a,b);
   }
 });
-test('chapter media has independent zero and last valid video frames',()=>{
-  assert.equal(videoFrameTime(sampleChapter(extent,starts,extent).media,10,30),0);
-  assert.equal(videoFrameTime(sampleChapter(1440,starts,extent).media,10,30),299/30);
+test('media starts in the preceding dissolve and reaches the last valid frame at its own end',()=>{
+  assert.equal(videoFrameTime(sampleChapter(1440,starts,extent).nextMedia,10,30),0);
+  assert.equal(videoFrameTime(sampleChapter(extent-.001,starts,extent).media,10,30),299/30);
+  assert.equal(videoFrameTime(sampleChapter(starts.at(-1)+extent,starts,extent).media,10,30),299/30);
   assert.equal(videoFrameTime(1,0,30),0);
   assert.equal(visualFor(content.profile,'preview').src,content.profile.visuals.landing.src);
 });
 test('dissolve takes a full viewport without shortening the reading passage',()=>{
   const begin=sampleChapter(1440,starts,extent), middle=sampleChapter(1940,starts,extent);
-  assert.equal(begin.dissolve,0);assert.equal(begin.media,1);
+  assert.equal(begin.dissolve,0);assert.ok(begin.media<1);
+  assert.ok(middle.media>begin.media);assert.ok(middle.nextMedia>begin.nextMedia);
   assert.ok(Math.abs(middle.dissolve-.5)<1e-8);
   assert.equal(sampleChapter(2440,starts,extent).index,1);
   assert.ok(Math.abs(readingOffset(0,starts,extent)-810)<1e-8);
@@ -52,6 +54,26 @@ test('dissolve takes a full viewport without shortening the reading passage',()=
     for(const group of [0,1,2])assert.equal(revealAt(sampleChapter(position,starts,extent).progress,group),1);
   }
 });
+test('overlapping media keeps its position and speed across every chapter boundary in both directions',()=>{
+  for(const markers of [starts,[0,2440,4640,7640,10000,12440]]){
+    for(let index=1;index<markers.length;index++){
+      const boundary=markers[index], step=.1;
+      const before=sampleChapter(boundary-step,markers,extent);
+      const at=sampleChapter(boundary,markers,extent);
+      const after=sampleChapter(boundary+step,markers,extent);
+      assert.ok(at.media>0&&at.media<1);
+      assert.ok(Math.abs(at.media-before.nextMedia)<.0001);
+      assert.ok(Math.abs((at.media-before.nextMedia)-(after.media-at.media))<1e-10);
+      assert.equal(videoFrameTime(at.media,10,30),videoFrameTime(before.nextMedia,10,30));
+      assert.deepEqual(sampleChapter(boundary-step,markers,extent),before);
+    }
+  }
+  assert.ok(sampleChapter(starts.at(-1)+extent-1000,starts,extent).media<1);
+  const last=sampleChapter(starts.at(-1)+extent,starts,extent);
+  assert.equal(last.dissolve,0);assert.equal(revealAt(last.progress,2),1);
+  assert.equal(last.media,1);assert.equal(last.nextMedia,1);
+});
+
 test('CMS accepts optional video settings and rejects invalid media and framing',()=>{
   const data=structuredClone(content);data.profile.visuals.about.videoSrc='/bg/bg.mp4';data.profile.visuals.about.fps=30;
   assert.doesNotThrow(()=>validateContent(data));

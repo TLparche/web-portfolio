@@ -2,11 +2,12 @@
 import { lockPageScroll } from './scroll-lock.mjs';
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useSpring } from 'motion/react';
+import { motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll } from 'motion/react';
+import { frame, cancelFrame } from 'motion';
 import { assetUrl, sectionForAnchor } from './config.mjs';
 import { clamp } from './timeline.mjs';
 import { CHAPTER_DISTANCE, sampleChapter, readingOffset } from './chapter-timeline.mjs';
-import { SCROLL_RESPONSE } from './scroll-response.mjs';
+import { followScroll } from './scroll-response.mjs';
 import { ScenePreparationContext } from './LoadingGate';
 import ScrollPanel from './ScrollPanel';
 import SceneBackdrop from './SceneBackdrop';
@@ -50,9 +51,9 @@ export default function Portfolio({ sections, profile }) {
   const root = useRef(null), starts = useRef([]), extent = useRef(1), alignedHash = useRef(false);
   const ids = useMemo(() => ['preview',...sections.map(section=>section.id)], [sections]);
   const { scrollY } = useScroll();
-  const visualY = useSpring(0, SCROLL_RESPONSE);
+  const visualY = useMotionValue(0);
   const { entranceOpening } = useContext(ScenePreparationContext);
-  const state = useMotionValue({index:0,next:Math.min(1,sections.length),progress:0,media:0,dissolve:0});
+  const state = useMotionValue({index:0,next:Math.min(1,sections.length),progress:0,media:0,nextMedia:0,dissolve:0});
   const contentProgress = useMotionValue(0);
   const [staged,setStaged] = useState(false), [chapterIndex,setChapterIndex] = useState(0);
   const [menu,setMenu] = useState(false), [detail,setDetail] = useState(null), [detailInstant,setDetailInstant] = useState(false);
@@ -68,10 +69,19 @@ export default function Portfolio({ sections, profile }) {
     if (root.current) root.current.dataset.visualScroll = value.toFixed(2);
     contentProgress.set(clamp((next.index+next.progress)/ids.length));
   },[state,contentProgress,ids.length]);
-  useMotionValueEvent(scrollY,'change',value => {
-    if (reducedMotion || !staged) visualY.jump(value);
-    else visualY.set(value);
-  });
+  useEffect(() => {
+    const follow = ({delta}) => {
+      const target = scrollY.get(), next = followScroll(visualY.get(),target,delta);
+      visualY.set(next);
+      if (next === target) cancelFrame(follow);
+    };
+    if (reducedMotion || !staged) visualY.jump(scrollY.get());
+    const unsubscribe = scrollY.on('change',value => {
+      if (reducedMotion || !staged) visualY.jump(value);
+      else frame.update(follow,true);
+    });
+    return () => { unsubscribe(); cancelFrame(follow); };
+  },[scrollY,visualY,reducedMotion,staged]);
   useMotionValueEvent(visualY,'change',update);
   const syncScroll = useCallback(value => { visualY.jump(value); update(value); },[visualY,update]);
   useChapterNavigation({root,starts,extent,sections,staged,reducedMotion,state,syncScroll});

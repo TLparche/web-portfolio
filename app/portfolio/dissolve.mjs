@@ -1,5 +1,6 @@
 import { clamp, smooth } from './timeline.mjs';
 
+export const DISSOLVE_FEATHER = .06;
 export const dissolveEase = value => .75 * smooth(0,1,value) + .25 * clamp(value);
 const cubic = t => t < .5 ? 4*t*t*t : 1-(-2*t+2)**3/2;
 

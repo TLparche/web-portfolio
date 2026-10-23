@@ -7,12 +7,17 @@ export const DISSOLVE_START = CONTENT_DISTANCE / CHAPTER_DISTANCE;
 export const READING_POSITION = .81 / CHAPTER_DISTANCE;
 
 export function sampleChapter(scroll, starts, extent) {
-  if (!starts.length) return { index:0, next:0, progress:0, media:0, dissolve:0 };
+  if (!starts.length) return { index:0, next:0, progress:0, media:0, nextMedia:0, dissolve:0 };
   const index = Math.max(0, starts.findLastIndex(start => scroll >= start));
-  const length = starts[index + 1] - starts[index] || extent || 1;
+  const lengthAt = i => starts[i + 1] - starts[i] || extent || 1;
+  const length = lengthAt(index), next = Math.min(index + 1, starts.length - 1);
   const progress = clamp((scroll - starts[index]) / length);
-  return { index, next:Math.min(index + 1, starts.length - 1), progress,
-    media:clamp(progress / DISSOLVE_START), dissolve:index < starts.length - 1 ? clamp((progress - DISSOLVE_START) / (1 - DISSOLVE_START)) : 0 };
+  const mediaAt = i => {
+    const overlap = i > 0 ? lengthAt(i - 1) * (1 - DISSOLVE_START) : 0;
+    return clamp((scroll - starts[i] + overlap) / (lengthAt(i) + overlap));
+  };
+  return { index, next, progress, media:mediaAt(index), nextMedia:mediaAt(next),
+    dissolve:index < starts.length - 1 ? clamp((progress - DISSOLVE_START) / (1 - DISSOLVE_START)) : 0 };
 }
 export function revealAt(progress, group = 0) {
   const distance = progress * CHAPTER_DISTANCE;

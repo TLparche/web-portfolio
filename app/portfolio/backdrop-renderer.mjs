@@ -1,3 +1,5 @@
+import { DISSOLVE_FEATHER } from './dissolve.mjs';
+
 export function createBackdropRenderer(canvas) {
   const gl = canvas.getContext('webgl',{alpha:false,antialias:false,depth:false,failIfMajorPerformanceCaveat:true});
   if (!gl) return null;
@@ -65,9 +67,10 @@ export function createBackdropRenderer(canvas) {
       vec3 field=texture2D(fieldImage,uv).rgb;
       float threshold=fieldReady>.5?clamp(2.*field.r-.075*field.b-.4625,0.,1.):
         clamp(.7*noise(uv*vec2(9.,6.))+.3*noise(uv*vec2(90.,60.)),0.,1.);
-      float incoming=1.-smoothstep(dissolve-.008,dissolve+.008,threshold);
-      a=etched(imageA,aspect.x,progress.x,positions.xy,contain.x,a,threshold,true);
-      b=etched(imageB,aspect.y,progress.y,positions.zw,contain.y,b,threshold,false);
+      float boundary=dissolve*${1+DISSOLVE_FEATHER}-${DISSOLVE_FEATHER/2};
+      float incoming=1.-smoothstep(boundary-${DISSOLVE_FEATHER/2},boundary+${DISSOLVE_FEATHER/2},threshold);
+      a=mix(a,etched(imageA,aspect.x,progress.x,positions.xy,contain.x,a,threshold,true),.35);
+      b=mix(b,etched(imageB,aspect.y,progress.y,positions.zw,contain.y,b,threshold,false),.35);
       gl_FragColor=vec4(mix(a,b,incoming),1.);
     }`));
   gl.linkProgram(program);
