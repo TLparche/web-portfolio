@@ -9,7 +9,7 @@ export default function Page() {
   const sceneImages=Object.fromEntries([{id:'preview'},...active].map(section=>{
     const visual=visualFor(profile,section.id);
     const images=collectImages(section,{image:visual.src});
-    if(section.id==='preview')images.push('/art/archive/entrance-closed.webp','/art/archive/entrance-open.webp');
+    if(section.id==='preview')images.push('/art/archive/entrance-atelier.webp','/art/archive/entrance-lens.webp');
     return [section.id,images.map(assetUrl)];
   }));
   return <LoadingGate sceneImages={sceneImages} sections={active} profile={profile}><Portfolio sections={active} profile={profile}/></LoadingGate>;

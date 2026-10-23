@@ -3,8 +3,8 @@
 .loader[data-phase=leaving]{opacity:0;pointer-events:none;}
 .loader[data-entrance=true]::before{display:none;}
 .loader[data-entrance=true] .loading{z-index:5;bottom:3%;width:min(340px,80%);}
-.loader[data-entrance=true] .meta strong{font-size:22px;color:#f3e7cd;}
-.loader[data-entrance=true] .meta>span{font-size:10px;color:#ebdfca;}
+.loader[data-entrance=true] .meta strong{font-size:22px;color:#49415c;}
+.loader[data-entrance=true] .meta>span{font-size:10px;color:#64586f;}
 .loader[data-entrance=true] .track{margin-top:8px;}
 .loader[data-entrance=true] .caption{display:none;}
 .loader[data-entrance=true][data-phase=error] .loading{padding:18px;background:#faf8f5f5;bottom:4%;width:min(500px,88%);border:1px solid #b8a57880;}

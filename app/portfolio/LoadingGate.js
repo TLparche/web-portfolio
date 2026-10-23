@@ -3,7 +3,9 @@ import { lockPageScroll } from './scroll-lock.mjs';
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { preloadImages } from './image-preload.mjs';
 import { sectionForAnchor } from './config.mjs';
+import { visualFor } from './chapter-timeline.mjs';
 import ArchiveEntrance from './ArchiveEntrance';
+import { LENS_ENTRY_DURATION } from './lens-journey.mjs';
 import styles from './LoadingGate.module.css';
 
 export const ScenePreparationContext = createContext({imagesReady:true,onReady:()=>{},entranceOpening:false,wallpaperActive:true});
@@ -42,7 +44,7 @@ export default function LoadingGate({ sceneImages, sections, profile, children }
   },[phase,sceneReady,entrance]);
   useEffect(()=>{
     if(phase!=='opening')return;
-    const timer=setTimeout(()=>setPhase('leaving'),matchMedia('(prefers-reduced-motion:reduce)').matches?0:1500);
+    const timer=setTimeout(()=>setPhase('leaving'),matchMedia('(prefers-reduced-motion:reduce)').matches?0:LENS_ENTRY_DURATION);
     return()=>clearTimeout(timer);
   },[phase]);
   useEffect(()=>{
@@ -69,10 +71,10 @@ export default function LoadingGate({ sceneImages, sections, profile, children }
   return <>
     <ScenePreparationContext.Provider value={context}><div data-loading-content inert={hydrated&&blocked} aria-hidden={hydrated&&blocked?true:undefined}>{children}</div></ScenePreparationContext.Provider>
     {blocked&&<section className={styles.loader} data-asset-loader data-phase={phase} data-entrance={entrance} aria-label={entrance?'포트폴리오 입구':'포트폴리오 준비'}>
-      {entrance ? <ArchiveEntrance phase={phase} still={still} onToggleStill={()=>setStill(value=>!value)} onEnter={()=>{if(phase==='sealed'){entered.current=true;setPhase('opening');}}}/> : <><span className={styles.index}>PERSONAL ARCHIVE / 001</span><div className={styles.center}><span className={styles.eyebrow}>Ideas in motion</span><h1>{profile.name || 'Portfolio'}</h1><p>작은 질문에서 시작되는 이야기.</p><span className={styles.rule}/></div></>}
+      {entrance ? <ArchiveEntrance phase={phase} visual={visualFor(profile,'preview')} still={still} onToggleStill={()=>setStill(value=>!value)} onEnter={()=>{if(phase==='sealed'){entered.current=true;setPhase('opening');}}}/> : <><span className={styles.index}>PERSONAL ARCHIVE / 001</span><div className={styles.center}><span className={styles.eyebrow}>Ideas in motion</span><h1>{profile.name || 'Portfolio'}</h1><p>작은 질문에서 시작되는 이야기.</p><span className={styles.rule}/></div></>}
       {!['sealed','opening','leaving'].includes(phase)&&<div className={styles.loading}><div className={styles.meta}><span role="status">{phase==='error'?(failures.length?'일부 이미지를 준비하지 못했습니다.':'첫 배경을 준비하지 못했습니다.'):'첫 장면을 준비하고 있습니다.'}</span><strong>{String(percent).padStart(2,'0')}<small>%</small></strong></div>
         <div className={styles.track} role="progressbar" aria-label="첫 장면 준비" aria-valuemin={0} aria-valuemax={total} aria-valuenow={prepared}><span style={{transform:'scaleX('+prepared/total+')'}}/></div>
-        <div className={styles.caption}><span>{entrance?'상자가 곧 준비됩니다.':'첫 장면 준비'}</span><span>{prepared} / {total}</span></div>
+        <div className={styles.caption}><span>첫 장면 준비</span><span>{prepared} / {total}</span></div>
         {phase==='error'&&<div className={styles.actions}><button onClick={()=>setAttempt(value=>value+1)}>다시 시도</button><button onClick={()=>setPhase(entrance?'sealed':'leaving')}>대체 배경으로 계속 보기</button>{failures.length>0&&<small>이미지 {failures.length}개</small>}</div>}
       </div>}
     </section>}
