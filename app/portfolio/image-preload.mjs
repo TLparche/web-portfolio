@@ -14,7 +14,7 @@ export function collectImages(...sources) {
 }
 
 /** Decode all candidates with bounded concurrency; failed images do not count as loaded. */
-export async function preloadImages(urls, { onProgress, signal } = {}) {
+export async function preloadImages(urls, { onProgress, signal, timeoutMs = 30000 } = {}) {
   const queue = [...new Set(urls.filter(url => typeof url === 'string' && url))];
   const failed = new Set();
   let cursor = 0, loaded = 0;
@@ -32,7 +32,7 @@ export async function preloadImages(urls, { onProgress, signal } = {}) {
       resolve(success);
     };
     const abort = () => finish(false);
-    const timer = setTimeout(() => finish(false), 30000);
+    const timer = setTimeout(() => finish(false), timeoutMs);
     image.onload = () => image.decode().then(() => finish(true), () => finish(false));
     image.onerror = () => finish(false);
     signal?.addEventListener('abort', abort, { once: true });

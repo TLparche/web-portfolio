@@ -46,7 +46,7 @@ export function validateContent(data) {
     if (!value || typeof value !== 'object') return;
     for (const [key, entry] of Object.entries(value)) {
       const location = `${label}.${key}`;
-      if (entry && ['image', 'src', 'thumbnail', 'cv'].includes(key)) {
+      if (entry && ['image', 'src', 'thumbnail', 'cv', 'videoSrc'].includes(key)) {
         check(typeof entry === 'string', `${location}: 파일 경로가 필요합니다.`);
         if (!/^https?:\/\//i.test(entry)) {
           check(/^\/(?!\/)/.test(entry) && !entry.includes('\\'), `${location}: /art 또는 /files로 시작하는 경로를 사용하세요.`);
@@ -56,6 +56,8 @@ export function validateContent(data) {
         }
       }
       if (entry && key === 'url') check(typeof entry === 'string' && /^(https?:\/\/|mailto:|\/(?!\/)|#)/i.test(entry), `${location}: 웹 주소 또는 이메일 링크를 사용하세요.`);
+      if (entry != null && key === 'fps') check(typeof entry === 'number' && entry > 0 && entry <= 120, `${location}: 1~120 사이 프레임 레이트를 입력하세요.`);
+      if (entry && ['position','mobilePosition'].includes(key) && label.includes('.visuals.')) check(/^\d+(?:\.\d+)?%\s+\d+(?:\.\d+)?%$/.test(entry) && entry.split(/\s+/).every(value=>parseFloat(value)<=100), `${location}: 0%~100% 범위의 가로 세로 비율을 입력하세요.`);
       visit(entry, location);
     }
   };

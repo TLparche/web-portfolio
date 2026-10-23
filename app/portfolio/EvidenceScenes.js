@@ -87,4 +87,3 @@ export function CredentialsPanel(props) { return <EvidenceRecords {...props}/>; 
 export function EducationPanel(props) { return <EvidenceRecords {...props}/>; }
 export function AwardsPanel(props) { return <EvidenceRecords {...props}/>; }
 export function SkillRecordsPanel(props) { return <EvidenceRecords {...props}/>; }
-

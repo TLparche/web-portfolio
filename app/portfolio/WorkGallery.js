@@ -1,4 +1,5 @@
 'use client';
+import { lockPageScroll } from './scroll-lock.mjs';
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react';
@@ -56,7 +57,10 @@ function FeaturedList({ items, open, instant, reduced, onIntent, visible, return
   }
   function leave() {
     clearTimeout(leaveTimer.current);
-    leaveTimer.current = setTimeout(() => { current.current = null; setPreview(null); }, instant ? 0 : 100);
+    leaveTimer.current = setTimeout(() => {
+      if (rail.current?.closest('[data-dissolving=true]')) return;
+      current.current = null; setPreview(null);
+    }, instant ? 0 : 100);
   }
   function click(event, index) {
     if (event.detail === 0) { open(items[index], true, event.currentTarget.id); return; }
@@ -71,7 +75,7 @@ function FeaturedList({ items, open, instant, reduced, onIntent, visible, return
     event.preventDefault(); expand(next, true); buttons[next]?.focus({ preventScroll: true });
     if (rail.current.scrollWidth > rail.current.clientWidth) buttons[next]?.scrollIntoView({ behavior: 'instant', block: 'nearest', inline: 'center' });
   }
-  return <motion.div className={styles.listView} data-work-list data-instant={immediate} aria-hidden={!present} inert={!present} exit={{ opacity: 0 }} transition={{ duration: immediate ? 0 : .16 }}>
+  return <motion.div className={styles.listView} data-reveal="2" data-work-list data-instant={immediate} aria-hidden={!present} inert={!present} exit={{ opacity: 0 }} transition={{ duration: immediate ? 0 : .16 }}>
     <div ref={rail} className={styles.ribbons} role="list" aria-label="대표 작업 6개" onKeyDown={key}>
       {items.map((record, index) => {
         const piece = pieces[index % pieces.length], active = preview === index, art = artwork(record.item);
@@ -81,7 +85,7 @@ function FeaturedList({ items, open, instant, reduced, onIntent, visible, return
           <div className={styles.ribbonShift} style={{ transform: `translateX(${shift}px)` }}>
             <button id={`projects-work-${record.item.id}`} className={styles.card} data-work-card data-item-id={record.item.id} aria-label={`${record.item.title} 자세히 보기`} aria-expanded={active} aria-controls="projects-showcase-detail" style={{ clipPath: active ? expanded : polygon(piece.points) }} onPointerEnter={event => { if (event.pointerType === 'mouse' && matchMedia('(hover:hover) and (pointer:fine)').matches) expand(index); }} onPointerLeave={leave} onFocus={event => { if (!restoring.current && event.currentTarget.matches(':focus-visible')) expand(index, true); }} onBlur={event => { if (!rail.current?.contains(event.relatedTarget)) leave(); }} onClick={event => click(event, index)}>
               <span className={styles.stripSurface} data-dark={index % 2 === 0}/>
-              {art.src && <img className={styles.stripArt} src={assetUrl(art.src)} alt="" loading="lazy" style={{ left: piece.art[0], top: piece.art[1], width: piece.art[2], height: piece.art[3] }} onError={event => imageError(event, record.item)}/>}
+              {art.src && <img className={styles.stripArt} src={assetUrl(art.src)} alt="" loading="lazy" style={{ left: Math.min(...piece.points.map(point=>point[0])), top: Math.min(...piece.points.map(point=>point[1])), width: Math.max(...piece.points.map(point=>point[0]))-Math.min(...piece.points.map(point=>point[0])), height: Math.max(...piece.points.map(point=>point[1]))-Math.min(...piece.points.map(point=>point[1])) }} onError={event => imageError(event, record.item)}/>}
               <span className={styles.stripLabel} style={{ left: piece.points[3][0] + 65, top: piece.points[3][1] - 95 }}>{record.item.title}</span>
             </button>
             {art.src && <img className={styles.floatingArt} src={assetUrl(art.src)} alt="" aria-hidden="true" style={{ left: 50 + index * 142 }} onError={event => imageError(event, record.item)}/>}
@@ -149,6 +153,19 @@ export default function WorkGallery({ section, Heading, chapter, visible = true 
   function cycle(direction) { if (performance.now() - wheelTime.current < 500) return; wheelTime.current = performance.now(); select(selected + direction); }
   interaction.current = { view, visible, cycle };
   useEffect(() => {
+    if (view !== 'detail' || !visible) return;
+    const releaseScroll = lockPageScroll(document);
+    const stopTouch = event => {
+      if (!event.target.closest('[data-scene-scroll]')) event.preventDefault();
+    };
+    const key = event => {
+      if (['PageDown','PageUp','Home','End',' '].includes(event.key) && !event.target.closest('button,[data-scene-scroll]')) event.preventDefault();
+    };
+    const node = root.current;
+    node.addEventListener('touchmove',stopTouch,{passive:false}); window.addEventListener('keydown',key);
+    return () => { releaseScroll(); node.removeEventListener('touchmove',stopTouch); window.removeEventListener('keydown',key); };
+  }, [view,visible]);
+  useEffect(() => {
     const measure = () => { const bounds = root.current.getBoundingClientRect(); setScale(Math.min(bounds.width / 1920, bounds.height / 1080)); };
     measure(); const observer = new ResizeObserver(measure); observer.observe(root.current); return () => observer.disconnect();
   }, []);
@@ -177,8 +194,8 @@ export default function WorkGallery({ section, Heading, chapter, visible = true 
   }, []);
   return <div ref={root} className={styles.works} data-copy data-widget="works" data-view={view} data-category={category.id} data-instant={immediate} data-visible={visible} style={{ '--scene-scale': scale, '--category-font': `${Math.max(20, 12 / Math.max(scale,.1))}px` }} onKeyDown={event => { if (event.key === 'Escape' && view === 'detail') { event.preventDefault(); event.stopPropagation(); back(true); } }}>
     <div className={styles.canvas}>
-      <header className={styles.heading}><span>{chapter}</span><Heading id="projects-title">작업·경험</Heading></header>
-      <div className={styles.categories} role="tablist" aria-label="작업·경험 분류" onKeyDown={event => selectKey(event, state.selected, state.chapters.length, chooseCategory)}>
+      <header className={styles.heading} data-reveal="0"><span>{chapter}</span><Heading id="projects-title">작업·경험</Heading></header>
+      <div className={styles.categories} data-reveal="2" role="tablist" aria-label="작업·경험 분류" onKeyDown={event => selectKey(event, state.selected, state.chapters.length, chooseCategory)}>
         {state.chapters.map((part,index) => <button key={part.id} id={`projects-category-${part.id}`} role="tab" aria-controls="projects-showcase-detail" aria-selected={view === 'detail' && index === state.selected} tabIndex={index === state.selected ? 0 : -1} onClick={event => chooseCategory(index,event.detail === 0)}><i aria-hidden="true">◇</i><span>{part.title}</span><small>{english[part.id]}</small></button>)}
       </div>
       <AnimatePresence initial={false}>

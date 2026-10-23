@@ -1,0 +1,81 @@
+// The original information widgets, keyboard controls and shared detail viewer.
+async (page) => {
+  const base = page.url().split('#')[0].split('?')[0];
+  const check = (condition, message) => { if (!condition) throw new Error(message); };
+  const errors = [];
+  const watch = (error) => errors.push(error.message);
+  page.on('pageerror', watch);
+  await page.setViewportSize({width:1440,height:1000});
+  await page.goto(base);
+  await page.locator('[data-ready="true"]').waitFor();
+  const go = async (id) => {
+    await page.evaluate((id) => document.getElementById(id).scrollIntoView({behavior:'instant'}), id);
+    await page.waitForTimeout(300);
+  };
+  await go('interests');
+  const interests = page.locator('#interests');
+  check(await interests.getByRole('tab').count() === 5, 'Missing interest cards');
+  await interests.getByRole('tab').first().focus();
+  await page.keyboard.press('ArrowRight');
+  check(await interests.getByRole('tab').nth(1).getAttribute('aria-selected') === 'true', 'Arrow selection failed');
+  await page.keyboard.press('End');
+  check(await interests.getByRole('tab').last().getAttribute('aria-selected') === 'true', 'End selection failed');
+  await page.keyboard.press('Home');
+  const why = interests.locator('details summary');
+  await why.focus(); await page.keyboard.press('Enter');
+  check(await interests.locator('details').evaluate(n=>n.open), 'Exploration notes are not keyboard accessible');
+  await page.waitForTimeout(500);
+  await page.screenshot({path:'output/playwright/interests-restored.png'});
+  await page.keyboard.press('Escape');
+  check(await interests.locator('details').evaluate(n=>!n.open), 'Interest Escape did not close exploration notes');
+  await interests.getByRole('tab').first().focus(); await page.keyboard.press('ArrowLeft');
+  check(await interests.getByRole('tab').last().getAttribute('aria-selected') === 'true', 'Interest previous did not wrap');
+
+  await go('projects');
+  const projects = page.locator('#projects');
+  check(await projects.getByRole('tab').count() === 4, 'Missing project tabs');
+  await projects.getByRole('tab').nth(2).click();
+  check(await projects.getByRole('heading',{name:'관찰을 연결하는 작업'}).isVisible(), 'Project tab did not switch content');
+  await projects.getByRole('tab').first().click();
+  check(await projects.getByRole('tab').first().getAttribute('aria-selected') === 'true', 'Work list selection failed');
+  await page.waitForTimeout(350);
+  await page.screenshot({path:'output/playwright/projects-restored.png'});
+  const open = projects.getByRole('button',{name:'인터랙티브 포트폴리오 상세 보기',exact:true});
+  await open.click();
+  const dialog = page.getByRole('dialog');
+  check(await dialog.locator('img').count() === 1 && await dialog.getByRole('list').count() === 2, 'Detail media, tags or bullets missing');
+  await dialog.getByRole('button',{name:'다음 상세 정보'}).click();
+  check(await dialog.getByRole('heading',{name:'질문에서 시작한 실험'}).isVisible(), 'Next detail did not change');
+  await dialog.getByRole('button',{name:'이전 상세 정보'}).click();
+  await dialog.getByRole('button',{name:'이전 상세 정보'}).click();
+  check(await dialog.getByRole('heading',{name:'다음 가능성을 위한 자리',exact:true}).isVisible(), 'Previous detail did not wrap within projects');
+  await page.screenshot({path:'output/playwright/detail-restored.png'});
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(350);
+  check(await open.evaluate(node=>document.activeElement===node), 'Detail navigation lost the original focus return');
+  const snapshots = ['experience','certifications','education','awards','publications','skills','activities'];
+  for (const id of snapshots) {
+    await go(id);
+    const box = await page.locator(`#${id} [data-copy]`).boundingBox();
+    check(box.y >= 95 && box.y + box.height < 940, `${id} copy overlaps the fixed navigation`);
+    await page.screenshot({path:`output/playwright/${id}-restored.png`});
+  }
+  await go('skills');
+  check(await page.locator('#skills [aria-label$="숙련도 입력 전"]').count() === 4, 'Unknown proficiency must stay unset');
+  check(await page.locator('#skills meter').count() === 0, 'Draft percentages should not claim proficiency');
+  const next = page.getByRole('link',{name:'다음 섹션: 활동',exact:true});
+  check(await next.getAttribute('href') === '#activities', 'Section next is not an anchor');
+  await next.click();
+  await page.waitForFunction(()=>Math.abs(document.getElementById('activities').getBoundingClientRect().top)<10);
+  await page.setViewportSize({width:390,height:844});
+  await page.goto(`${base}#projects`);
+  await page.locator('#projects').getByRole('tab').nth(1).click();
+  check(await page.locator('#projects').getByRole('heading',{name:'질문에서 시작한 실험'}).isVisible(), 'Mobile project controls failed');
+  check(await page.locator('canvas').count()===0, 'Mobile widgets loaded 3D');
+  check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth), 'Widgets cause mobile overflow');
+  await page.screenshot({path:'output/playwright/mobile-projects.png'});
+  page.off('pageerror', watch);
+  check(errors.length===0, errors.join('\n'));
+  await page.setViewportSize({width:1440,height:1000});
+  await page.goto(base);
+}

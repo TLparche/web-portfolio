@@ -1,0 +1,55 @@
+// Observe real animation frames: pointer feedback, interruption, and keyboard bypass.
+async page => {
+  const base = page.url().split('#')[0].split('?')[0];
+  const check = (ok, message) => { if (!ok) throw new Error(message); };
+  await page.setViewportSize({width:1440,height:1000});
+  await page.goto(base+'?motion-check='+Date.now()+'#projects');
+  await page.locator('[data-ready=true]').waitFor();
+  await page.waitForTimeout(500);
+  const motion = await page.evaluate(async () => {
+    const project = document.getElementById('projects');
+    const buttons = project.querySelectorAll('[role=tab]');
+    const reveal = project.querySelector('[data-content-reveal]');
+    const click = index => buttons[index].dispatchEvent(new MouseEvent('click',{bubbles:true,detail:1}));
+    const frame = () => new Promise(requestAnimationFrame);
+    click(1); await frame(); await frame();
+    const animation = reveal.getAnimations()[0];
+    const first = animation ? {duration:animation.effect.getTiming().duration,frames:animation.effect.getKeyframes()} : null;
+    await new Promise(resolve => setTimeout(resolve,40));
+    const before = getComputedStyle(reveal).transform;
+    click(2); await frame(); await frame();
+    const running = reveal.getAnimations();
+    return {first,before,after:running[0]?.effect.getKeyframes()[0].transform,count:running.length};
+  });
+  check(motion.first?.duration === 280 && motion.first.frames[0].transform === 'translateY(8px)', 'Content did not fade and rise at the existing duration: '+JSON.stringify(motion));
+  check(motion.count === 1 && motion.after !== 'translateY(8px)', 'Rapid selection restarted or stacked motion');
+  await page.waitForTimeout(350);
+  const projects = page.locator('#projects');
+  await projects.getByRole('tab').nth(2).focus(); await page.keyboard.press('ArrowDown');
+  check(await projects.locator('[data-content-reveal]').evaluate(n => n.getAnimations().length === 0), 'Keyboard selection animates');
+  const open = projects.getByRole('button',{name:'다음 가능성을 위한 자리 상세 보기',exact:true});
+  await open.click();
+  const dialog = page.locator('dialog[data-detail-kind=projects]');
+  check(await dialog.evaluate(n => n.open), 'Pointer detail did not open');
+  const backdrop = await dialog.evaluate(n => getComputedStyle(n,'::backdrop').transitionDuration);
+  check(backdrop.includes('0.28s'), 'Backdrop transition is missing');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.querySelector('dialog[data-detail-kind=projects]')?.open);
+  check(await open.evaluate(n => n===document.activeElement), 'Immediate Escape lost focus return');
+  await open.click(); await page.waitForTimeout(300);
+  const exit=await dialog.evaluate(async n => { const instant=n.dataset.instant; n.querySelector('button[aria-label="상세 정보 닫기"]').dispatchEvent(new MouseEvent('click',{bubbles:true,detail:1})); await new Promise(requestAnimationFrame); return {instant,open:n.open,animations:n.getAnimations().map(animation=>({duration:animation.effect.getTiming().duration,frames:animation.effect.getKeyframes()}))}; });
+  const exitDuration=exit.animations.find(animation=>animation.frames.at(-1).opacity==='0')?.duration;
+  check(exitDuration===280,'Pointer dialog exit duration is incorrect: '+JSON.stringify(exit));
+  await page.waitForFunction(() => !document.querySelector('dialog[data-detail-kind=projects]')?.open);
+  const menu = page.getByRole('button',{name:'전체 메뉴',exact:true});
+  await menu.click(); await page.waitForTimeout(350);
+  const menuDialog = page.getByRole('dialog');
+  const delay = await menuDialog.getByRole('navigation').getByRole('link').nth(4).evaluate(n => getComputedStyle(n).transitionDelay);
+  check(delay.includes('0.12s'), 'Menu entry stagger is missing');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(30);
+  await menu.focus(); await page.keyboard.press('Enter');
+  check(await page.getByRole('dialog').getAttribute('data-instant')==='true', 'Keyboard menu did not bypass motion');
+  check(await page.getByRole('dialog').evaluate(n => n.getAnimations({subtree:true}).length===0), 'Keyboard menu still has animations');
+  await page.keyboard.press('Escape');
+  return {pointerContent:motion,keyboardInstant:true,backdrop,exitDuration,menuStagger:delay,fastEscape:true};
+}

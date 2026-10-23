@@ -139,6 +139,7 @@ dist
 design-brief/
 desgin-codebase/
 .claude/
+/user_document/
 
 # 문서는 저장소에 두지 않는다 (HANDOFF.md, README.md 등 전부 로컬)
 *.md

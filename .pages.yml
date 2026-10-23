@@ -9,6 +9,12 @@ media:
     output: /art
     extensions: [webp, png, jpg, jpeg, avif]
     rename: safe
+  - name: videos
+    label: 슬라이드 영상
+    input: public/videos
+    output: /videos
+    extensions: [mp4, webm]
+    rename: safe
   - name: documents
     label: 이력서 · 문서
     input: public/files
@@ -27,6 +33,29 @@ settings:
       rename: "content: rename {oldPath} to {newPath}"
 
 components:
+  sceneVisual:
+    type: object
+    fields:
+      - name: src
+        label: 화면 이미지
+        type: image
+        options: { media: artwork }
+        description: 사진, 프로젝트 화면, 연구 이미지 등을 사용할 수 있습니다. 투명 배경은 필요하지 않습니다.
+      - { name: alt, label: 이미지 설명, type: string }
+      - { name: videoSrc, label: 스크롤 연동 영상 (선택), type: file, options: { media: videos } }
+      - { name: fps, label: 영상 프레임 레이트, type: number, description: 비워 두면 30fps로 처리합니다. }
+      - { name: mobilePosition, label: 모바일 초점 위치, type: string, description: '예: 60% 50%' }
+      - name: position
+        label: 이미지 초점 위치
+        type: string
+        description: '가로 세로 비율입니다. 예: 50% 50%는 중앙, 70% 50%는 오른쪽 중심입니다.'
+      - name: fit
+        label: 이미지 표시 방식
+        type: select
+        options:
+          values:
+            - { value: cover, label: 영역 채우기 }
+            - { value: contain, label: 이미지 전체 보기 }
   identifier:
     type: string
     label: 항목 ID
@@ -153,7 +182,7 @@ content:
     operations: { create: false, rename: false, delete: false }
     fields:
       - name: profile
-        label: 기본 정보 · 시작 명함 · 연락처
+        label: 기본 정보 · 랜딩 · 연락처
         type: object
         description: 비워 둔 항목은 기존 플레이스홀더로 표시됩니다. 공개할 정보만 입력하세요.
         fields:
@@ -161,6 +190,16 @@ content:
           - { name: role, label: 직무 · 역할, type: string }
           - { name: tagline, label: 한 줄 소개, type: text }
           - { name: affiliation, label: 소속, type: string }
+          - name: visuals
+            label: 화면별 배경 · 이미지 · 영상
+            type: object
+            fields:
+              - { name: landing, label: 랜딩, component: sceneVisual }
+              - { name: about, label: 소개, component: sceneVisual }
+              - { name: interests, label: 관심분야, component: sceneVisual }
+              - { name: projects, label: 작업·경험, component: sceneVisual }
+              - { name: education, label: 이력·역량, component: sceneVisual }
+              - { name: contact, label: 연락처, component: sceneVisual }
           - name: email
             label: 이메일
             type: string
