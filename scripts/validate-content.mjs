@@ -46,6 +46,14 @@ export function validateContent(data) {
     if (!value || typeof value !== 'object') return;
     for (const [key, entry] of Object.entries(value)) {
       const location = `${label}.${key}`;
+      if (key === 'detailSections' && entry != null) {
+        check(Array.isArray(entry), `${location}: 상세 문단은 목록이어야 합니다.`);
+        for (const part of entry) {
+          check(part && typeof part.title === 'string' && part.title.trim() && typeof part.body === 'string', `${location}: 소제목과 본문이 필요합니다.`);
+          if (part.image) check(typeof part.alt === 'string' && part.alt.trim(), `${location}: 자료 이미지의 대체 텍스트가 필요합니다.`);
+          if (part.caption != null) check(typeof part.caption === 'string', `${location}: 자료 설명은 문자열이어야 합니다.`);
+        }
+      }
       if (entry && ['image', 'src', 'thumbnail', 'cv', 'videoSrc'].includes(key)) {
         check(typeof entry === 'string', `${location}: 파일 경로가 필요합니다.`);
         if (!/^https?:\/\//i.test(entry)) {

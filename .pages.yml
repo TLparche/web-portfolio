@@ -96,12 +96,12 @@ components:
         type: image
         required: true
         options: { media: artwork }
-        description: 투명 배경 PNG 또는 WebP를 권장합니다. 이미지 관리에서 올린 파일을 선택하세요.
+        description: 프로젝트 화면, 설명 도표 또는 콘셉트 이미지를 선택하세요. 이미지의 성격은 대체 텍스트에 명시하세요.
       - name: thumbnail
         label: 작은 미리보기 이미지
         type: image
         options: { media: artwork }
-        description: 원본 교체 시 함께 교체하거나 비우세요. 비우면 원본 이미지를 사용합니다.
+        description: 좁은 작업 갤러리와 썸네일에 사용합니다. 작업 갤러리는 확장하면 원본 이미지로 전환합니다. 비우면 원본 이미지를 사용합니다.
       - { name: alt, label: 이미지 설명, type: string, required: true }
       - name: temporary
         label: 임시 이미지 표시
@@ -118,6 +118,9 @@ components:
     fields:
       - { name: title, label: 소제목, type: string, required: true }
       - { name: body, label: 본문, type: text, required: true }
+      - { name: image, label: 설명 자료 이미지 (선택), type: image, options: { media: artwork } }
+      - { name: alt, label: 자료 대체 텍스트, type: text, description: 이미지를 사용할 때 반드시 입력하세요. 핵심 정보와 수치를 글로 설명하세요. }
+      - { name: caption, label: 자료 설명 · 출처, type: text, description: 재구성한 도표라면 실제 화면이나 원본 로그가 아님을 표시하세요. }
   work:
     type: object
     list:
@@ -140,12 +143,12 @@ components:
         component: link
         list:
           collapsible: { collapsed: true, summary: '{fields.label}' }
-      - { name: artwork, label: 대표 일러스트, component: artwork }
+      - { name: artwork, label: 대표 이미지 · 도표, component: artwork }
       - name: image
         label: 대체 이미지
         type: image
         options: { media: artwork }
-        description: 대표 일러스트를 표시할 수 없을 때 사용합니다.
+        description: 대표 이미지를 표시할 수 없을 때 사용합니다.
       - name: placeholder
         label: 임시 내용 표시
         type: boolean
@@ -184,7 +187,7 @@ content:
       - name: profile
         label: 기본 정보 · 랜딩 · 연락처
         type: object
-        description: 비워 둔 항목은 기존 플레이스홀더로 표시됩니다. 공개할 정보만 입력하세요.
+        description: 공개할 정보만 입력하세요. 이력서가 비어 있으면 다운로드 링크를 표시하지 않습니다.
         fields:
           - { name: name, label: 이름 · 닉네임, type: string }
           - { name: role, label: 직무 · 역할, type: string }
@@ -301,8 +304,8 @@ content:
                   - { name: summary, label: 소개 본문, type: text }
                   - { name: tags, label: 키워드, type: string, list: true }
                   - { name: why, label: 관심 이유, type: text }
-                  - { name: approach, label: 접근 방법, type: text }
-                  - { name: where, label: 활용 방향, type: text }
+                  - { name: approach, label: 직접 해본 것, type: text }
+                  - { name: where, label: 앞으로의 질문, type: text }
                   - { name: question, label: 연구 질문, type: text }
                   - name: accent
                     label: 포인트 색상

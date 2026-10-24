@@ -26,7 +26,7 @@ export function ArchiveCover({ profile, firstId }) {
       <p className={styles.tagline} data-reveal="1">{profile.tagline || '생각을 움직이는 경험으로.'}</p>
       <a className={styles.action} data-reveal="2" data-reveal-kind="ticket" data-reveal-phase="surface" href={`#${firstId}`}><span data-reveal="2">포트폴리오 살펴보기</span><ArrowUpRight data-reveal="2" size={22} weight="light" aria-hidden="true"/></a>
     </div>
-    <p className={styles.coverNote} data-reveal="3.5">작은 질문과 시도, 그 안에서 발견한 가능성.</p>
+    <p className={styles.coverNote} data-reveal="3.5">{profile.affiliation}</p>
   </div>;
 }
 
@@ -103,8 +103,8 @@ export function ArchiveContact({ section, chapter, profile, firstId }) {
       {email ? <a className={styles.action} data-reveal="2" data-reveal-kind="ticket" data-reveal-phase="surface" href={`mailto:${email}`}><span data-reveal="2">이메일 보내기</span><ArrowUpRight data-reveal="2" size={22} weight="light" aria-hidden="true"/></a> : <div className={`${styles.action} ${styles.pending}`} data-reveal="2" data-reveal-kind="ticket" data-reveal-phase="surface"><span data-reveal="2">이메일</span><small data-reveal="2">준비 중</small></div>}
       {email && <p className={styles.email} data-reveal="2.5">{email}</p>}
       <div className={styles.contactLinks} data-reveal="3" data-reveal-kind="controls">
-        {cv ? <a href={assetUrl(cv)}>이력서 보기<ArrowDown size={17} aria-hidden="true"/></a> : <span>이력서 <small>준비 중</small></span>}
-        {links.length ? links.map(link => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label}<ArrowUpRight size={17} aria-hidden="true"/></a>) : <span>공개 채널 <small>준비 중</small></span>}
+        {cv && <a href={assetUrl(cv)}>이력서 보기<ArrowDown size={17} aria-hidden="true"/></a>}
+        {links.map(link => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label}<ArrowUpRight size={17} aria-hidden="true"/></a>)}
       </div>
       <a className={styles.back} data-reveal="3.5" data-reveal-kind="controls" href={`#${firstId}`}>처음으로<ArrowUp size={17} aria-hidden="true"/></a>
     </div>

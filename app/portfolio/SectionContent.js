@@ -10,8 +10,17 @@ export function Tags({ items = [] }) {
   return items.length > 0 && <ul className={styles.tags} aria-label="관련 분야와 도구">{items.map((tag) => <li key={tag}>{tag}</li>)}</ul>;
 }
 
+export function DetailFigure({ part }) {
+  const [failedSource, setFailedSource] = useState(null);
+  if (!part.image) return null;
+  return <figure className={styles.detailFigure}>
+    {failedSource === part.image ? <p role="status">자료 이미지를 불러오지 못했습니다. {part.alt}</p> : <a href={assetUrl(part.image)} target="_blank" rel="noreferrer" aria-label={`${part.title} 자료 크게 보기 (새 탭)`}><img src={assetUrl(part.image)} alt={part.alt} loading="lazy" decoding="async" onError={() => setFailedSource(part.image)}/><span>자료 크게 보기 ↗</span></a>}
+    {part.caption && <figcaption>{part.caption}</figcaption>}
+  </figure>;
+}
+
 function ActivityBody({item}) {
-  return <div className={styles.activityBody}><p>{item.detail || '담당한 역할과 활동 과정, 배운 점을 작성할 공간입니다.'}</p>{item.role&&<p>역할: {item.role}</p>}{item.result&&<p>기여: {item.result}</p>}{item.bullets&&<ul>{item.bullets.map(text=><li key={text}>{text}</li>)}</ul>}{item.links?.filter(link=>link.url).map(link=><a key={link.url} href={link.url}>{link.label} ↗</a>)}</div>;
+  return <div className={styles.activityBody}>{item.detail&&<p>{item.detail}</p>}{item.role&&<p>역할: {item.role}</p>}{item.result&&<p>기여: {item.result}</p>}{item.bullets&&<ul>{item.bullets.map(text=><li key={text}>{text}</li>)}</ul>}{item.detailSections?.map(part=><section key={part.title}><h4>{part.title}</h4><p>{part.body}</p><DetailFigure part={part}/></section>)}{item.links?.filter(link=>link.url).map(link=><a key={link.url} href={link.url}>{link.label} ↗</a>)}</div>;
 }
 
 function Activities({section, onSelect, item: controlledItem, onChange, instant: controlledInstant, reading = false, inline = false}) {

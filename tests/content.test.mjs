@@ -36,6 +36,24 @@ test('CMS uploads use the deployment prefix and external assets keep their URL',
   }
 });
 
+test('detail figures keep CMS fields and require accessible, existing assets', () => {
+  const edited = structuredClone(content);
+  const work = edited.sections.find(section => section.kind === 'projects').showcaseItems[0];
+  const part = { title: '구현 흐름', body: '자료를 설명하는 본문', image: '/art/projects/moa.webp', alt: '음성에서 협업 캔버스로 이어지는 흐름', caption: '설명용 재구성' };
+  work.detailSections = [part];
+  assert.deepEqual(validateContent(edited).sections.find(section => section.kind === 'projects').showcaseItems[0].detailSections[0], part);
+  part.alt = ' ';
+  assert.throws(() => validateContent(edited), /대체 텍스트/);
+  part.alt = '처리 흐름';
+  part.image = '/art/projects/missing-diagram.webp';
+  assert.throws(() => validateContent(edited), /파일을 찾을 수 없습니다/);
+  delete part.image;
+  delete part.alt;
+  validateContent(edited);
+  work.detailSections = {};
+  assert.throws(() => validateContent(edited), /목록/);
+});
+
 test('CMS omission of empty fields keeps placeholders and cleared lists safe', () => {
   const saved = structuredClone(normalizeContent(content));
   delete saved.profile;

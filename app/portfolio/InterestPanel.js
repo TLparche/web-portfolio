@@ -11,8 +11,8 @@ const sourceFor = item => item?.artwork?.src || item?.image;
 function ExplorationNotes({ item }) {
   return <dl className={styles.notes}>
     <div><dt>관심 이유</dt><dd>{item.why || '관심을 갖게 된 계기를 작성할 공간입니다.'}</dd></div>
-    <div><dt>접근 방법</dt><dd>{item.approach || '살펴볼 자료와 실험 방법을 작성할 공간입니다.'}</dd></div>
-    <div><dt>활용 방향</dt><dd>{item.where || '탐구의 활용 방향을 작성할 공간입니다.'}</dd></div>
+    <div><dt>직접 해본 것</dt><dd>{item.approach || '살펴볼 자료와 실험 방법을 작성할 공간입니다.'}</dd></div>
+    <div><dt>앞으로의 질문</dt><dd>{item.where || '탐구의 활용 방향을 작성할 공간입니다.'}</dd></div>
   </dl>;
 }
 
