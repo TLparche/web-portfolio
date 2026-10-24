@@ -7,7 +7,7 @@ import { followPointer, pointerCoordinate } from './entrance-motion.mjs';
 import { LENS_ENTRY_DURATION, lensJourney } from './lens-journey.mjs';
 import styles from './ArchiveEntrance.module.css';
 
-export default function ArchiveEntrance({ phase, onEnter, still, onToggleStill, visual, profile }) {
+export default function ArchiveEntrance({ phase, onEnter, still, onToggleStill, visual }) {
   const scene=useRef(null), lens=useRef(null), reflection=useRef(null), light=useRef(null), portal=useRef(null), aperture=useRef(null);
   const landscape=useRef(null), bezel=useRef(null), portalView=useRef(null), portalRim=useRef(null);
   const finePointer=useRef(false), entering=useRef(false);
@@ -104,7 +104,7 @@ export default function ArchiveEntrance({ phase, onEnter, still, onToggleStill, 
       <div className={styles.portal} ref={portal}><img className={styles.portalView} ref={portalView} src={src} alt="" style={imageStyle}/></div>
       <img className={styles.portalRim} ref={portalRim} src={assetUrl('/art/archive/entrance-lens.webp')} alt=""/>
     </div>
-    <span className={styles.brand}>{profile.name || 'Portfolio'}<span>{profile.tagline}</span></span>
+    <span className={styles.brand}>Portfolio<span>생각을 움직이는 경험으로.</span></span>
     <div className={styles.invitation}>
       <h1>기록 너머의 이야기</h1>
       <p id="archive-invitation">{ready?'렌즈 너머에, 작은 질문들이 만든 세계가 있습니다.':opening?'기록 속으로 들어갑니다.':'첫 번째 이야기를 준비하고 있습니다.'}</p>

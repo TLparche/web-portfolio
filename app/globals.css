@@ -1,8 +1,6 @@
 :root { --paper:#F5F8FC; --ink:#111827; --blue:#226DFF; --cyan:#8DE5EF; --muted:#526175; --line:#d6e0ed; --page-pad:clamp(24px,5.2vw,100px); --ease-out:cubic-bezier(.23,1,.32,1); --ease-panel:cubic-bezier(.32,.72,0,1); --motion-content:280ms; --motion-panel:400ms; }
 * { box-sizing:border-box; }
-html { background:var(--paper); color:var(--ink); scrollbar-gutter:stable; scrollbar-color:#82799b #faf8f3; }
-html:has([data-page-scrollbar]) { scrollbar-width:none; scrollbar-gutter:auto; }
-html:has([data-page-scrollbar])::-webkit-scrollbar { display:none; }
+html { background:var(--paper); color:var(--ink); scrollbar-gutter:stable; }
 /* Initial fragment navigation must settle before the enhanced layout appears. */
 html:has([data-enhanced=true][data-ready=true]) { scroll-behavior:smooth; }
 body { margin:0; font-family:var(--font-body),sans-serif; -webkit-font-smoothing:antialiased; }

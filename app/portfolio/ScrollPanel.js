@@ -1,12 +1,10 @@
 'use client';
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { componentReveal, revealAt } from './chapter-timeline.mjs';
 import { dissolveTone } from './dissolve.mjs';
-import { ScenePreparationContext } from './LoadingGate';
 
 export default function ScrollPanel({ index, state, staged, reduced, className, children }) {
   const ref = useRef(null);
-  const { arrival } = useContext(ScenePreparationContext);
   const [visible,setVisible] = useState(true);
   useEffect(() => {
     if (!staged) { setVisible(true); return; }
@@ -15,7 +13,7 @@ export default function ScrollPanel({ index, state, staged, reduced, className, 
     let nodes = [], previousVisible;
     const paint = () => {
       const scene = state.get(), active = scene.index === index;
-      const progress = active ? Math.min(scene.progress, !reduced && arrival ? arrival.get() : 1) : 0;
+      const progress = active ? scene.progress : 0;
       const opacity = reduced ? Number(active) : revealAt(progress);
       const shown = opacity > .05;
       const dissolving = active && scene.dissolve > 0;
@@ -43,9 +41,8 @@ export default function ScrollPanel({ index, state, staged, reduced, className, 
     const scan = () => { nodes = [...node.querySelectorAll('[data-reveal]')]; paint(); };
     scan();
     const unsubscribe = state.on('change',paint);
-    const unsubscribeArrival = arrival?.on('change',paint);
     const observer = new MutationObserver(scan); observer.observe(node,{childList:true,subtree:true});
-    return () => { unsubscribe(); unsubscribeArrival?.(); observer.disconnect(); node.style.contentVisibility=''; node.style.opacity=''; node.style.filter=''; node.style.visibility=''; node.style.pointerEvents=''; node.inert=false; node.removeAttribute('aria-hidden'); delete node.dataset.dissolving; nodes.forEach(el=>{el.style.opacity='';el.style.translate='';el.style.clipPath='';el.inert=false;}); };
-  },[index,state,staged,reduced,arrival]);
+    return () => { unsubscribe(); observer.disconnect(); node.style.contentVisibility=''; node.style.opacity=''; node.style.filter=''; node.style.visibility=''; node.style.pointerEvents=''; node.inert=false; node.removeAttribute('aria-hidden'); delete node.dataset.dissolving; nodes.forEach(el=>{el.style.opacity='';el.style.translate='';el.style.clipPath='';el.inert=false;}); };
+  },[index,state,staged,reduced]);
   return <div ref={ref} className={className} data-panel data-scroll-panel data-visible={visible}>{typeof children === 'function' ? children(visible) : children}</div>;
 }

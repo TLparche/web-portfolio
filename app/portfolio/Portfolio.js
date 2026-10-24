@@ -10,9 +10,8 @@ import { CHAPTER_DISTANCE, sampleChapter, readingOffset } from './chapter-timeli
 import { advanceReveal, followScroll, revealContinuation } from './scroll-response.mjs';
 import { ScenePreparationContext } from './LoadingGate';
 import ScrollPanel from './ScrollPanel';
-import ScrollRail from './ScrollRail';
 import SceneBackdrop from './SceneBackdrop';
-import SectionContent, { Tags, ActivityReading, DetailFigure } from './SectionContent';
+import SectionContent, { Tags, ActivityReading } from './SectionContent';
 import InterestPanel from './InterestPanel';
 import SkillsPanel from './SkillsPanel';
 import { ContentReveal, contentTiming } from './SceneArt';
@@ -26,7 +25,7 @@ import styles from './Portfolio.module.css';
 
 
 function DetailReading({item}) {
-  return <><div className={styles.detailBody}>{item.detail}{item.bullets && <ul>{item.bullets.map(text=><li key={text}>{text}</li>)}</ul>}{item.detailSections?.map(part=><section key={part.title}><h3>{part.title}</h3><p>{part.body}</p><DetailFigure part={part}/></section>)}</div>{item.links?.length>0 && <nav className={styles.detailLinks} aria-label="관련 자료">{item.links.filter(link=>link.url).map(link=><a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label} ↗</a>)}</nav>}</>;
+  return <><div className={styles.detailBody}>{item.detail}{item.bullets && <ul>{item.bullets.map(text=><li key={text}>{text}</li>)}</ul>}{item.detailSections?.map(part=><section key={part.title}><h3>{part.title}</h3><p>{part.body}</p></section>)}</div>{item.links?.length>0 && <nav className={styles.detailLinks} aria-label="관련 자료">{item.links.filter(link=>link.url).map(link=><a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label} ↗</a>)}</nav>}</>;
 }
 
 function Panel({ section, index, count, state, staged, reduced, onDetail, onSelect, profile, projectId, researchId }) {
@@ -204,7 +203,7 @@ export default function Portfolio({ sections, profile }) {
   function changeActivity(item, keyboard = false) { setDetail(item); setDetailInstant(keyboard); }
   function moveDetail(direction, event) { setDetailInstant(event.detail === 0); setDetail(details[(detailIndex + direction + details.length) % details.length]); dialog.current.scrollTop = 0; }
   const firstId = sections[0]?.id || 'main';
-  return <div ref={root} className={styles.portfolio} style={{'--chapter-length':`${CHAPTER_DISTANCE*100/4}svh`}} data-enhanced={staged} data-staged={staged} data-native-scroll="true" data-ready={staged} data-paused={paused} data-cover={onCover} data-active-kind={sections[active]?.kind}>
+  return <div ref={root} className={styles.portfolio} style={{'--chapter-length':`${CHAPTER_DISTANCE*100/2}svh`}} data-enhanced={staged} data-staged={staged} data-native-scroll="true" data-ready={staged} data-paused={paused} data-cover={onCover} data-active-kind={sections[active]?.kind}>
     <a className={styles.skip} href={`#${firstId}`}>본문으로 건너뛰기</a>
     <header className={styles.header}>
       <a className={styles.brand} href="#preview" aria-label="포트폴리오 처음으로"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11"/><circle cx="16" cy="16" r="6"/><path d="M16 1v7m0 16v7M1 16h7m16 0h7M11 21l10-10"/></svg><span>{profile.name || 'Portfolio'}</span></a>
@@ -213,7 +212,6 @@ export default function Portfolio({ sections, profile }) {
         <button className={styles.menuButton} onClick={event => { menuDialog.current.dataset.instant = String(event.detail === 0); setMenu(true); }} aria-label="전체 메뉴" aria-haspopup="dialog" aria-expanded={menu}>목차 <svg viewBox="0 0 28 20" aria-hidden="true"><path d="M2 5h24M2 15h16"/></svg></button>
       </div>
     </header>
-    {staged && <ScrollRail container={root} position={visualY} onScroll={syncScroll}/>}
     {staged && <SceneBackdrop profile={profile} ids={ids} state={state} paused={paused} reduced={reducedMotion}/>}
     <main id="main" className={styles.main}>
       <section id="preview" className={styles.preview} aria-labelledby="preview-name" data-preview data-chapter>
@@ -231,7 +229,7 @@ export default function Portfolio({ sections, profile }) {
         {chapterIndex < sections.length ? <a href={`#${onCover ? firstId : sections[active + 1].id}`} aria-label={`다음 섹션: ${onCover ? sections[0].title : sections[active + 1].title}`}>↓</a> : <button disabled aria-label="다음 섹션 없음">↓</button>}
       </div>
     </nav>
-    <footer className={styles.footer}><span>{profile.name || 'Portfolio'} / 계속 만들어가는 기록</span><div>{profile.email && <a href={`mailto:${profile.email}`}>이메일</a>}{profile.cv && <a href={assetUrl(profile.cv)}>CV 다운로드</a>}{profile.links.map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label}</a>)}</div><span>AI · DATA DEVELOPMENT</span></footer>
+    <footer className={styles.footer}><span>{profile.name || 'Portfolio'} / 계속 만들어가는 기록</span><div>{profile.email && <a href={`mailto:${profile.email}`}>이메일</a>}{profile.cv && <a href={assetUrl(profile.cv)}>CV 다운로드</a>}{profile.links.map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label}</a>)}</div><span>콘텐츠 초안</span></footer>
     <dialog ref={menuDialog} className={styles.menuDialog} onCancel={event=>{event.preventDefault();closeMenu(event);}} onClose={() => setMenu(false)} aria-labelledby="menu-title" onClick={(event) => { if (event.target === event.currentTarget) closeMenu(event); }}>
       <div className={styles.menuContent}><div className={styles.dialogTop}><h2 id="menu-title">목차</h2><button onClick={closeMenu} aria-label="메뉴 닫기">×</button></div>
         <nav aria-label="전체 섹션">{[{id:'preview',title:'프롤로그'},...sections].map((section, index) => <a key={section.id} href={`#${section.id}`} onClick={closeMenu} aria-current={chapterIndex === index ? 'location' : undefined} style={{ transitionDelay: `${Math.min(index, 5) * 30}ms` }}><span>{String(index).padStart(2,'0')}</span>{section.title}<span aria-hidden="true">↗</span></a>)}</nav>
