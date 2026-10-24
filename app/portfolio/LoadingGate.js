@@ -4,19 +4,20 @@ import { createContext, useCallback, useEffect, useMemo, useRef, useState } from
 import { animate, motion, useMotionValue, useMotionValueEvent, useReducedMotion, useTransform } from 'motion/react';
 import { preloadImages } from './image-preload.mjs';
 import { sectionForAnchor } from './config.mjs';
-import { visualFor } from './chapter-timeline.mjs';
+import { READING_POSITION, visualFor } from './chapter-timeline.mjs';
+import { SCROLL_RESPONSE } from './scroll-response.mjs';
 import ArchiveEntrance from './ArchiveEntrance';
 import { LENS_ENTRY_DURATION } from './lens-journey.mjs';
 import styles from './LoadingGate.module.css';
 
-export const ScenePreparationContext = createContext({imagesReady:true,onReady:()=>{},entranceOpening:false,wallpaperActive:true});
+export const ScenePreparationContext = createContext({imagesReady:true,onReady:()=>{},entranceOpening:false,wallpaperActive:true,arrival:null});
 
 export default function LoadingGate({ sceneImages, sections, profile, children }) {
   const [attempt,setAttempt]=useState(0), [loaded,setLoaded]=useState(0), [total,setTotal]=useState(1);
   const [failures,setFailures]=useState([]), [phase,setPhase]=useState('loading'), [hydrated,setHydrated]=useState(false);
   const [entrance,setEntrance]=useState(true), [still,setStill]=useState(false);
   const [percent,setPercent]=useState(0);
-  const progress=useMotionValue(0), reduced=useReducedMotion();
+  const progress=useMotionValue(0), arrival=useMotionValue(0), reduced=useReducedMotion();
   const barTransform=useTransform(progress,value=>`scaleX(${value})`);
   useMotionValueEvent(progress,'change',value=>setPercent(Math.floor(value*100)));
   const entered=useRef(false), loadingStarted=useRef(0);
@@ -24,11 +25,11 @@ export default function LoadingGate({ sceneImages, sections, profile, children }
   const targetScene=useRef('preview');
   const [sceneReady,setSceneReady]=useState(false);
   const onReady=useCallback(id=>{if(id===targetScene.current)setSceneReady(true);},[]);
-  const context=useMemo(()=>({imagesReady:phase!=='loading',onReady,entranceOpening:phase==='opening',wallpaperActive:phase==='open'}),[phase,onReady]);
+  const context=useMemo(()=>({imagesReady:phase!=='loading',onReady,entranceOpening:phase==='opening',wallpaperActive:phase==='open',arrival:entrance||phase==='open'?null:arrival}),[phase,onReady,entrance,arrival]);
   useEffect(()=>{
     const controller=new AbortController();let fontTimer;
     loadingStarted.current=performance.now();
-    progress.jump(0);setPercent(0);
+    progress.jump(0);arrival.jump(0);setPercent(0);
     const id=location.hash.slice(1), owner=sectionForAnchor(sections,id);
     setEntrance(!owner);
     targetScene.current=owner?.id || 'preview';
@@ -42,7 +43,7 @@ export default function LoadingGate({ sceneImages, sections, profile, children }
       setLoaded(urls.length-failed.length+1);setFailures(failed);setPhase(failed.length?'error':'prepared');
     })().catch(()=>{if(!controller.signal.aborted){setFailures(urls);setPhase('error');}});
     return()=>{controller.abort();clearTimeout(fontTimer);};
-  },[attempt,sceneImages,sections,progress]);
+  },[attempt,sceneImages,sections,progress,arrival]);
   useEffect(()=>{
     if(phase!=='prepared'||sceneReady)return;
     if(reduced){setSceneReady(true);return;}
@@ -67,9 +68,14 @@ export default function LoadingGate({ sceneImages, sections, profile, children }
   },[phase]);
   useEffect(()=>{
     if(phase!=='leaving')return;
-    const timer=setTimeout(()=>setPhase('open'),reduced?0:entrance?300:600);
+    const timer=setTimeout(()=>setPhase(entrance||reduced?'open':'revealing'),reduced?0:entrance?300:600);
     return()=>clearTimeout(timer);
   },[phase,entrance,reduced]);
+  useEffect(()=>{
+    if(phase!=='revealing')return;
+    const animation=animate(arrival,READING_POSITION,{duration:reduced?0:SCROLL_RESPONSE.revealDuration/1000,ease:'linear',onComplete:()=>setPhase('open')});
+    return()=>animation.stop();
+  },[phase,arrival,reduced]);
   useEffect(()=>{
     if(!blocked)return;
     const releaseScroll = lockPageScroll(document);
@@ -87,7 +93,7 @@ export default function LoadingGate({ sceneImages, sections, profile, children }
   },[hydrated,phase,target,progress,reduced,attempt]);
   return <>
     <ScenePreparationContext.Provider value={context}><div data-loading-content inert={hydrated&&blocked} aria-hidden={hydrated&&blocked?true:undefined}>{children}</div></ScenePreparationContext.Provider>
-    {blocked&&<section className={styles.loader} data-asset-loader data-phase={phase} data-entrance={entrance} aria-label={entrance?'포트폴리오 입구':'포트폴리오 준비'}>
+    {blocked&&phase!=='revealing'&&<section className={styles.loader} data-asset-loader data-phase={phase} data-entrance={entrance} aria-label={entrance?'포트폴리오 입구':'포트폴리오 준비'}>
       {entrance ? <ArchiveEntrance profile={profile} phase={phase} visual={visualFor(profile,'preview')} still={still} onToggleStill={()=>setStill(value=>!value)} onEnter={()=>{if(phase==='sealed'){entered.current=true;setPhase('opening');}}}/> : <><span className={styles.index}>PERSONAL ARCHIVE / 001</span><div className={styles.center}><span className={styles.eyebrow}>{profile.role}</span><h1>{profile.name || 'Portfolio'}</h1><p>{profile.tagline}</p><span className={styles.rule}/></div></>}
       {(!entrance||!['sealed','opening','leaving'].includes(phase))&&<div className={styles.loading}><div className={styles.meta}><span role="status">{phase==='error'?(failures.length?'일부 이미지를 준비하지 못했습니다.':'첫 배경을 준비하지 못했습니다.'):percent===100?'준비가 끝났습니다.':'첫 장면을 준비하고 있습니다.'}</span><strong>{String(percent).padStart(2,'0')}<small>%</small></strong></div>
         <div className={styles.track} role="progressbar" aria-label="첫 장면 준비" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}><motion.span style={{transform:barTransform}}/></div>

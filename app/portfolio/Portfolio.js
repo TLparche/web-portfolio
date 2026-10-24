@@ -204,7 +204,7 @@ export default function Portfolio({ sections, profile }) {
   function changeActivity(item, keyboard = false) { setDetail(item); setDetailInstant(keyboard); }
   function moveDetail(direction, event) { setDetailInstant(event.detail === 0); setDetail(details[(detailIndex + direction + details.length) % details.length]); dialog.current.scrollTop = 0; }
   const firstId = sections[0]?.id || 'main';
-  return <div ref={root} className={styles.portfolio} style={{'--chapter-length':`${CHAPTER_DISTANCE*100/2}svh`}} data-enhanced={staged} data-staged={staged} data-native-scroll="true" data-ready={staged} data-paused={paused} data-cover={onCover} data-active-kind={sections[active]?.kind}>
+  return <div ref={root} className={styles.portfolio} style={{'--chapter-length':`${CHAPTER_DISTANCE*100/4}svh`}} data-enhanced={staged} data-staged={staged} data-native-scroll="true" data-ready={staged} data-paused={paused} data-cover={onCover} data-active-kind={sections[active]?.kind}>
     <a className={styles.skip} href={`#${firstId}`}>본문으로 건너뛰기</a>
     <header className={styles.header}>
       <a className={styles.brand} href="#preview" aria-label="포트폴리오 처음으로"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11"/><circle cx="16" cy="16" r="6"/><path d="M16 1v7m0 16v7M1 16h7m16 0h7M11 21l10-10"/></svg><span>{profile.name || 'Portfolio'}</span></a>
