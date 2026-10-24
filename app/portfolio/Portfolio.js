@@ -10,6 +10,7 @@ import { CHAPTER_DISTANCE, sampleChapter, readingOffset } from './chapter-timeli
 import { advanceReveal, followScroll, revealContinuation } from './scroll-response.mjs';
 import { ScenePreparationContext } from './LoadingGate';
 import ScrollPanel from './ScrollPanel';
+import ScrollRail from './ScrollRail';
 import SceneBackdrop from './SceneBackdrop';
 import SectionContent, { Tags, ActivityReading } from './SectionContent';
 import InterestPanel from './InterestPanel';
@@ -212,6 +213,7 @@ export default function Portfolio({ sections, profile }) {
         <button className={styles.menuButton} onClick={event => { menuDialog.current.dataset.instant = String(event.detail === 0); setMenu(true); }} aria-label="전체 메뉴" aria-haspopup="dialog" aria-expanded={menu}>목차 <svg viewBox="0 0 28 20" aria-hidden="true"><path d="M2 5h24M2 15h16"/></svg></button>
       </div>
     </header>
+    {staged && <ScrollRail container={root} position={visualY} onScroll={syncScroll}/>}
     {staged && <SceneBackdrop profile={profile} ids={ids} state={state} paused={paused} reduced={reducedMotion}/>}
     <main id="main" className={styles.main}>
       <section id="preview" className={styles.preview} aria-labelledby="preview-name" data-preview data-chapter>
