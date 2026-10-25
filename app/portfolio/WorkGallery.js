@@ -1,12 +1,13 @@
 'use client';
 import { lockPageScroll } from './scroll-lock.mjs';
 
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react';
 import { assetUrl } from './config.mjs';
 import { selectKey } from './SceneArt';
 import { DetailFigure, Tags } from './SectionContent';
 import { useChapterSelection } from './ChapterGroup';
+import { InitialChapterAnchorContext } from './ScrollPanel';
 import { pieces, galleryLayout } from './work-gallery-layout.mjs';
 import styles from './WorkGallery.module.css';
 
@@ -36,7 +37,7 @@ function FeaturedList({ items, open, instant, onIntent, returnFocus }) {
   const [preview, setPreview] = useState(null), [keyboard, setKeyboard] = useState(false), [scale, setScale] = useState(1), [switching, setSwitching] = useState(false);
   const current = useRef(null), leaveTimer = useRef(null), restoring = useRef(false), rail = useRef(null);
   const present = useIsPresent(), immediate = instant || keyboard, layout = galleryLayout(preview);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const node = rail.current.parentElement;
     const measure = () => setScale(Math.min(node.clientWidth / 1920, node.clientHeight / 1080));
     measure(); const observer = new ResizeObserver(measure); observer.observe(node);
@@ -132,6 +133,7 @@ function DetailView({ category, selected, select, back, instant, entry, focusOnE
 }
 
 export default function WorkGallery({ section, Heading, chapter, visible = true }) {
+  const restoreAnchor = useContext(InitialChapterAnchorContext);
   const state = useChapterSelection(section), reduced = useReducedMotion();
   const [view,setView] = useState('list'), [selected,setSelected] = useState(0), [instant,setInstant] = useState(false), [entry,setEntry] = useState(true), [returnFocus,setReturnFocus] = useState(null), [focusOnEntry,setFocusOnEntry] = useState(false);
   const root = useRef(null), origin = useRef(null), categoryTime = useRef(-Infinity), wheelTime = useRef(-Infinity), interaction = useRef(null);
@@ -171,8 +173,9 @@ export default function WorkGallery({ section, Heading, chapter, visible = true 
       if (index < 0) return;
       setView(index === 0 ? 'list' : 'detail'); setSelected(0); setEntry(true); setInstant(false); setFocusOnEntry(false); setReturnFocus(null); origin.current = `projects-category-${state.chapters[index].id}`;
     };
-    read(); window.addEventListener('hashchange', read); return () => window.removeEventListener('hashchange', read);
-  }, [section]);
+    if (restoreAnchor) read();
+    window.addEventListener('hashchange', read); return () => window.removeEventListener('hashchange', read);
+  }, [section,restoreAnchor]);
   useEffect(() => {
     const node = root.current;
     const wheel = event => {

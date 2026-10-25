@@ -105,7 +105,7 @@ export default function Portfolio({ sections, profile }) {
     });
     const wheel = event => {
       if (event.ctrlKey) return;
-      if (automatic.current) { event.preventDefault(); event.stopPropagation(); return; }
+      if (automatic.current || root.current?.querySelector('[data-replaying=true]')) { event.preventDefault(); event.stopPropagation(); return; }
       if (!event.deltaY) return;
       if (event.deltaY < 0 || navigationTarget.current !== null) interrupt();
       forward = event.deltaY > 0;
