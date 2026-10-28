@@ -32,7 +32,7 @@ async page => {
     check(Number(idle.frames)-Number(frozen.frames)<=2,'Idle renderer kept running');
     await tab.evaluate(async()=>{const start=document.querySelector('[data-section]').getBoundingClientRect().top+scrollY;for(const p of [.1,.9,.6,.05,.8,.08]){scrollTo({top:start+(document.documentElement.scrollHeight-innerHeight-start)*p,behavior:'instant'});await new Promise(requestAnimationFrame);}});
     await settle();check(Number((await data()).videoTime)<duration*.09,'Rapid input did not settle on the latest request');
-    await tab.getByRole('navigation',{name:'주요 메뉴',exact:true}).getByRole('link',{name:'작업·경험',exact:true}).click();
+    await tab.getByRole('navigation',{name:'주요 메뉴',exact:true}).getByRole('link',{name:'경험',exact:true}).click();
     await tab.waitForFunction(()=>Math.abs(document.getElementById('projects').getBoundingClientRect().top)<1);
     await tab.waitForFunction(()=>document.querySelector('canvas').dataset.suspended==='true');
     const covered=await data();await tab.waitForTimeout(500);check((await data()).frames===covered.frames,'Opaque work stage kept rendering video');

@@ -1,31 +1,32 @@
-export const pieces = [
-  [[664,139],[804,139],[594,569],[454,569]],
-  [[747,264],[836,370],[557,941],[418,941]],
-  [[987,71],[1076,178],[712,923],[625,816]],
-  [[1044,252],[1186,252],[890,863],[747,863]],
-  [[1146,344],[1233,453],[928,1080],[788,1080]],
-  [[1338,252],[1478,252],[1168,885],[1081,780]],
-];
+export function galleryLayout(active, { width = 1920, height = 800 } = {}) {
+  const cardHeight = Math.min(height - 24, 780);
+  const top = (height - cardHeight) / 2;
+  const slant = Math.min(cardHeight * .32, width * .16);
+  const gap = Math.min(16, width * .012);
+  const expandedWidth = Math.min(560, width * .38);
+  const stripWidth = Math.min(132, (width - slant - gap * 5 - expandedWidth) / 5);
+  const total = (active === null ? stripWidth * 6 : stripWidth * 5 + expandedWidth) + slant + gap * 5;
+  let left = (width - total) / 2;
+  const cuts = [[.05,.05,.62,.62],[.24,.34,.96,.96],[0,.10,.90,.80],[.18,.18,.88,.88],[.28,.38,1,1],[.16,.16,.84,.74]];
+  return Array.from({ length: 6 }, (_, index) => {
+    const cardWidth = index === active ? expandedWidth : stripWidth;
+    const ends = index === active ? [0,0,1,1] : cuts[index];
+    const points = ends.map((y, corner) => [left + slant * (1 - y) + (corner === 1 || corner === 2 ? cardWidth : 0), top + cardHeight * y]);
+    const labelY = Math.min(cuts[index][2], cuts[index][3]) - .16;
+    const captionTop = top + Math.max(cardHeight * .44, cardHeight - 250);
+    const captionInset = slant * (1 - (captionTop - top) / cardHeight);
+    const card = {
+      points,
+      left, top: Math.min(...points.map(point => point[1])), width: cardWidth + slant, height: cardHeight * (Math.max(...ends) - Math.min(...ends)),
+      labelLeft: left + slant * (1 - labelY) + 8, labelTop: top + cardHeight * labelY - 24, labelWidth: cardWidth - 16,
+      captionLeft: left + captionInset + 20, captionTop, captionWidth: cardWidth - captionInset - 40,
+    };
+    left += cardWidth + gap;
+    return card;
+  });
+}
 
-const edges = pieces.map(points => {
-  const diagonal = points.map(([x,y]) => x + .45 * y);
-  return [Math.min(...diagonal), Math.max(...diagonal)];
-});
-
-export function galleryLayout(active) {
-  const shifts = pieces.map(() => 0);
-  if (active === null) return { shifts, expanded:null, offset:0 };
-  const left = (edges[active][0] + edges[active][1] - 660) / 2;
-  const expanded = [[left,0],[left+660,0],[left+174,1080],[left-486,1080]];
-  let before = left - 6, after = left + 666;
-  for (let i = active - 1; i >= 0; i--) {
-    shifts[i] = before - edges[i][1];
-    before = edges[i][0] + shifts[i] - 6;
-  }
-  for (let i = active + 1; i < pieces.length; i++) {
-    shifts[i] = after - edges[i][0];
-    after = edges[i][1] + shifts[i] + 6;
-  }
-  const xs = pieces.flatMap((points,i) => i === active ? expanded.map(([x]) => x) : points.map(([x]) => x + shifts[i]));
-  return { shifts, expanded, offset:1912 - Math.max(...xs), artLeft:left + 30, captionLeft:left - 210 };
+export function galleryPointerPreview(current, previous, point, target) {
+  if (target === null || (previous && previous.x === point.x && previous.y === point.y)) return current;
+  return target;
 }

@@ -30,7 +30,7 @@ export function ArchiveCover({ profile, firstId }) {
   </div>;
 }
 
-export function ArchiveIntro({ section, chapter, profile, projectId, researchId }) {
+export function ArchiveIntro({ section, chapter, profile, projectId }) {
   const symbols = [Eye, Atom, Sparkle];
   return <div className={`${styles.scene} ${styles.intro}`} style={paper} data-copy data-archive-scene="intro">
     <Artwork visual={profile.visuals?.about}/>
@@ -43,7 +43,7 @@ export function ArchiveIntro({ section, chapter, profile, projectId, researchId 
         const group = 2 + Math.min(index, 4) * .3;
         return <div key={fact.label} data-reveal={group} data-reveal-kind="record" data-reveal-phase="surface"><Symbol data-reveal={group} size={32} weight="thin" aria-hidden="true"/><dt data-reveal={group}>{fact.label}</dt><dd data-reveal={group}>{fact.value}</dd></div>;
       })}</dl>}
-      <nav className={styles.textLinks} data-reveal="3" data-reveal-kind="controls" aria-label="작업과 연구">{projectId && <a href={`#${projectId}`}>작업·경험 보기<ArrowUpRight size={19} aria-hidden="true"/></a>}{researchId && <a href={`#${researchId}`}>연구 보기<ArrowUpRight size={19} aria-hidden="true"/></a>}</nav>
+      <nav className={styles.textLinks} data-reveal="3" data-reveal-kind="controls" aria-label="경험 살펴보기">{projectId && <a href={`#${projectId}`}>경험 보기<ArrowUpRight size={19} aria-hidden="true"/></a>}</nav>
     </div>
   </div>;
 }
@@ -59,7 +59,7 @@ function Records({ section }) {
         {(item.period || item.date || item.year) && <p className={styles.recordPeriod}>{item.period || item.date || item.year}</p>}
         <p>{item.description}</p>
         {(item.organization || item.institution || item.issuer) && <p>{item.organization || item.institution || item.issuer}</p>}
-        {(item.detail || item.bullets?.length) && <details><summary>기록 더 보기</summary>{item.detail && <p>{item.detail}</p>}{item.bullets?.length > 0 && <ul>{item.bullets.map(text => <li key={text}>{text}</li>)}</ul>}</details>}
+        {(item.detail || item.bullets?.length) && <details><summary>{section.kind === 'skills' ? '사용 기술 보기' : '기록 더 보기'}</summary>{item.detail && <p>{item.detail}</p>}{item.bullets?.length > 0 && <ul>{item.bullets.map(text => <li key={text}>{text}</li>)}</ul>}</details>}
         {Number.isFinite(item.level) && <p>숙련도 {Math.max(0, Math.min(100, item.level))}%</p>}
         {item.badge && item.badge !== '—' && <small className={styles.badge}>{item.badge}</small>}
         {item.links?.filter(link => link.url).map(link => <a className={styles.recordLink} key={link.url} href={link.url.startsWith('/') ? assetUrl(link.url) : link.url} target={/^https?:/.test(link.url) ? '_blank' : undefined} rel="noreferrer">{link.label}<ArrowUpRight size={16} aria-hidden="true"/></a>)}
@@ -73,7 +73,7 @@ function Records({ section }) {
 
 export function ArchiveEducation({ section, chapter, profile }) {
   const state = useChapterSelection(section);
-  const labels = { education: '배움의 기록', credentials: '배움을 확인하는 이정표', awards: '노력의 발자취', skills: '가능성을 만드는 도구' };
+  const labels = { education: '학업의 기반', credentials: '자격과 어학', awards: '수상·선정과 대회 기록', skills: '프로젝트로 익힌 기술' };
   return <div className={`${styles.scene} ${styles.archive}`} style={paper} data-copy data-archive-scene="education" data-chapter-group={section.id}>
     <Artwork visual={profile.visuals?.education} className={styles.archiveArt}/>
     <ChapterTabs section={section} {...state} vertical className={styles.archiveTabs}/>

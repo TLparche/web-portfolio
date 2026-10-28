@@ -3,12 +3,14 @@ import { activeSections, sections, profile, assetUrl } from './portfolio/config.
 import LoadingGate from './portfolio/LoadingGate';
 import { collectImages } from './portfolio/image-preload.mjs';
 import { visualFor } from './portfolio/chapter-timeline.mjs';
+import { workDomains } from './portfolio/work-catalog.mjs';
 
 export default function Page() {
   const active=activeSections(sections);
   const sceneImages=Object.fromEntries([{id:'preview'},...active].map(section=>{
     const visual=visualFor(profile,section.id);
-    const images=collectImages(section,{image:visual.src});
+    const source = section.kind === 'projects' ? workDomains : section;
+    const images=collectImages(source,{image:visual.src});
     if(section.id==='preview')images.push('/art/archive/entrance-atelier.webp','/art/archive/entrance-lens.webp');
     return [section.id,images.map(assetUrl)];
   }));

@@ -10,7 +10,7 @@ test('CMS content accepts edits and rejects broken published references', () => 
   edited.profile.name = '편집 테스트';
   edited.sections[0].headline = '수정한 소개';
   const work = edited.sections.find(section => section.kind === 'projects');
-  work.showcaseItems.push({ id: 'cms-test-work', title: '새 작업', description: '새 설명' });
+  work.showcaseItems.push({ id: 'cms-test-work', slug: 'cms-test-work', domain: 'misc', title: '새 작업', description: '새 설명' });
   work.featuredItemIds = ['cms-test-work'];
   validateContent(edited);
   work.showcaseItems.pop();
@@ -54,12 +54,28 @@ test('detail figures keep CMS fields and require accessible, existing assets', (
   assert.throws(() => validateContent(edited), /목록/);
 });
 
+test('result highlights require both a value and its evaluation context', () => {
+  const edited = structuredClone(content);
+  const work = edited.sections.find(section => section.kind === 'projects').showcaseItems[0];
+  work.highlights = [{ label: 'CER', value: '12.8% → 8.7%', note: '분리된 파일럿 음성 약 50시간' }];
+  assert.deepEqual(validateContent(edited).sections.find(section => section.kind === 'projects').showcaseItems[0].highlights, work.highlights);
+  for (const invalid of [{}, [null], [{ label: 'CER', value: '8.7%', note: ' ' }], [{ label: 'CER', value: 8.7, note: '파일럿' }]]) {
+    work.highlights = invalid;
+    assert.throws(() => validateContent(edited), /핵심 결과|검증 범위/);
+  }
+  work.highlights = [];
+  validateContent(edited);
+  delete work.highlights;
+  validateContent(edited);
+});
+
 test('CMS omission of empty fields keeps placeholders and cleared lists safe', () => {
   const saved = structuredClone(normalizeContent(content));
   delete saved.profile;
   for (const section of saved.sections) {
     if (!section.items.length) delete section.items;
     for (const group of section.groups || []) delete group.items;
+    for (const item of section.showcaseItems || []) delete item.relatedWorkIds;
   }
   const work = saved.sections.find(section => section.kind === 'projects');
   delete work.showcaseItems;
