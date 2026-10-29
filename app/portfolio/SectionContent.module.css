@@ -9,6 +9,12 @@
 .education p { font-size:12px; line-height:1.85; color:var(--muted); word-break:keep-all; }
 .tags { list-style:none; padding:0; margin:14px 0 0; display:flex; flex-wrap:wrap; gap:6px; }
 .tags li { border:1px solid #d6e1f0; border-radius:3px; padding:5px 8px; font-size:10px; color:#425977; line-height:1.4; background:#ffffff75; }
+.detailFigure { margin:28px 0; padding:14px; border:1px solid #c6b78f; background:#f7f5f0; }
+.detailFigure a { display:block; color:#494875; }
+.detailFigure img { display:block; width:100%; height:auto; }
+.detailFigure a>span { display:block; margin-top:14px; font-size:14px; }
+.detailFigure figcaption { margin-top:12px; color:#6d6680; font-size:13px; line-height:1.8; word-break:keep-all; }
+.detailFigure a:focus-visible { outline:2px solid #494875; outline-offset:4px; }
 .textButton { border:0; background:none; color:var(--blue); padding:12px 0 0; font-size:12px; display:inline-flex; align-items:center; gap:24px; }
 .textButton:hover { color:#144eab; }
 .textButton span { font-size:21px; }

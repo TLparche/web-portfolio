@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'motion/react';
 import { selectKey } from './SceneArt';
 import SectionContent from './SectionContent';
 import { ExperiencePanel, CredentialsPanel, EducationPanel, AwardsPanel, SkillRecordsPanel } from './EvidenceScenes';
 import styles from './ChapterGroup.module.css';
+import { InitialChapterAnchorContext } from './ScrollPanel';
 
 export function useChapterSelection(section) {
+  const restoreAnchor = useContext(InitialChapterAnchorContext);
   const chapters = section.chapters || [section];
   const [selected, setSelected] = useState(0);
   const [instant, setInstant] = useState(false);
@@ -16,9 +18,10 @@ export function useChapterSelection(section) {
       const index = chapters.findIndex(item => item.id === window.location.hash.slice(1));
       if(index >= 0) {setSelected(index);setInstant(true);}
     };
-    read(); window.addEventListener('hashchange',read);
+    if (restoreAnchor) read();
+    window.addEventListener('hashchange',read);
     return () => window.removeEventListener('hashchange',read);
-  }, [section]);
+  }, [section,restoreAnchor]);
   function choose(index, keyboard = false) {
     setSelected(index);setInstant(keyboard);
     history.replaceState(null,'',`#${chapters[index].id}`);

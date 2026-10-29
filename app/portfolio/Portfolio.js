@@ -10,8 +10,9 @@ import { CHAPTER_DISTANCE, sampleChapter, readingOffset } from './chapter-timeli
 import { advanceReveal, followScroll, revealContinuation } from './scroll-response.mjs';
 import { ScenePreparationContext } from './LoadingGate';
 import ScrollPanel from './ScrollPanel';
+import ScrollRail from './ScrollRail';
 import SceneBackdrop from './SceneBackdrop';
-import SectionContent, { Tags, ActivityReading } from './SectionContent';
+import SectionContent, { Tags, ActivityReading, DetailFigure } from './SectionContent';
 import InterestPanel from './InterestPanel';
 import SkillsPanel from './SkillsPanel';
 import { ContentReveal, contentTiming } from './SceneArt';
@@ -25,23 +26,22 @@ import styles from './Portfolio.module.css';
 
 
 function DetailReading({item}) {
-  return <><div className={styles.detailBody}>{item.detail}{item.bullets && <ul>{item.bullets.map(text=><li key={text}>{text}</li>)}</ul>}{item.detailSections?.map(part=><section key={part.title}><h3>{part.title}</h3><p>{part.body}</p></section>)}</div>{item.links?.length>0 && <nav className={styles.detailLinks} aria-label="관련 자료">{item.links.filter(link=>link.url).map(link=><a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label} ↗</a>)}</nav>}</>;
+  return <><div className={styles.detailBody}>{item.detail}{item.bullets && <ul>{item.bullets.map(text=><li key={text}>{text}</li>)}</ul>}{item.detailSections?.map(part=><section key={part.title}><h3>{part.title}</h3><p>{part.body}</p><DetailFigure part={part}/></section>)}</div>{item.links?.length>0 && <nav className={styles.detailLinks} aria-label="관련 자료">{item.links.filter(link=>link.url).map(link=><a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label} ↗</a>)}</nav>}</>;
 }
 
-function Panel({ section, index, count, state, staged, reduced, onDetail, onSelect, profile, projectId, researchId }) {
+function Panel({ section, index, count, state, staged, reduced, onDetail, onSelect, profile, projectId }) {
   const Heading = 'h2';
   const chapter = String(index).padStart(2,'0') + ' / ' + String(count).padStart(2,'0');
   const firstId = 'preview';
   return <section id={section.id} className={styles.section} data-section data-chapter data-kind={section.kind} data-side={section.framing.side} aria-labelledby={section.id+'-title'}>
     <ScrollPanel index={index} state={state} staged={staged} reduced={reduced} className={styles.panel}>{visible => <>
-{section.kind === 'intro' ? <ArchiveIntro section={section} chapter={chapter} profile={profile} projectId={projectId} researchId={researchId}/> : section.kind === 'education' ? <ArchiveEducation section={section} chapter={chapter} profile={profile}/> : section.kind === 'contact' ? <ContactPanel section={section} Heading={Heading} chapter={chapter} profile={profile} firstId={firstId}/> : section.kind === 'projects' ? <WorkGallery section={section} Heading={Heading} chapter={chapter} onDetail={onDetail} visible={visible}/> : section.chapters ? <ChapterGroup section={section} Heading={Heading} chapter={chapter} onDetail={onDetail} profile={profile}/> : section.kind === 'interests' ? <InterestPanel section={section} Heading={Heading} chapter={chapter} visible={visible}/> : section.kind === 'skills' ? <SkillsPanel section={section} index={index} Heading={Heading} visible={visible}/> : section.kind === 'publications' ? <PublicationPanel section={section} Heading={Heading} onDetail={onDetail}/> : section.kind === 'experience' ? <ExperiencePanel section={section} Heading={Heading} chapter={chapter} onDetail={onDetail}/> : section.kind === 'credentials' ? <CredentialsPanel section={section} Heading={Heading} chapter={chapter}/> : section.kind === 'education' ? <EducationPanel section={section} Heading={Heading} chapter={chapter}/> : section.kind === 'awards' ? <AwardsPanel section={section} Heading={Heading} chapter={chapter}/> : <div className={styles.copy} data-copy data-enter={section.kind === 'activities' ? undefined : 'title'}>
+{section.kind === 'intro' ? <ArchiveIntro section={section} chapter={chapter} profile={profile} projectId={projectId}/> : section.kind === 'education' ? <ArchiveEducation section={section} chapter={chapter} profile={profile}/> : section.kind === 'contact' ? <ContactPanel section={section} Heading={Heading} chapter={chapter} profile={profile} firstId={firstId}/> : section.kind === 'projects' ? <WorkGallery section={section} Heading={Heading} chapter={chapter} onDetail={onDetail} visible={visible}/> : section.chapters ? <ChapterGroup section={section} Heading={Heading} chapter={chapter} onDetail={onDetail} profile={profile}/> : section.kind === 'interests' ? <InterestPanel section={section} Heading={Heading} chapter={chapter} visible={visible}/> : section.kind === 'skills' ? <SkillsPanel section={section} index={index} Heading={Heading} visible={visible}/> : section.kind === 'publications' ? <PublicationPanel section={section} Heading={Heading} onDetail={onDetail}/> : section.kind === 'experience' ? <ExperiencePanel section={section} Heading={Heading} chapter={chapter} onDetail={onDetail}/> : section.kind === 'credentials' ? <CredentialsPanel section={section} Heading={Heading} chapter={chapter}/> : section.kind === 'education' ? <EducationPanel section={section} Heading={Heading} chapter={chapter}/> : section.kind === 'awards' ? <AwardsPanel section={section} Heading={Heading} chapter={chapter}/> : <div className={styles.copy} data-copy data-enter={section.kind === 'activities' ? undefined : 'title'}>
         <div className={styles.chapter}><span>{String(index + 1).padStart(2, '0')} / {String(count).padStart(2, '0')}</span><span>{section.title}</span></div>
         <Heading id={`${section.id}-title`} className={styles.display}>{section.kind==='intro' ? section.headline : section.display}</Heading>
         <h3 className={styles.headline}>{section.kind==='intro' ? section.display.replace('\n',' ') : section.headline}</h3>
         <p className={styles.body}>{section.body}</p>
         <SectionContent section={section} onDetail={onDetail} onSelect={onSelect} profile={profile} />
-        {section.kind === 'intro' && projectId && <a href={`#${projectId}`} className={styles.primary}>작업 보기 <span aria-hidden="true">↗</span></a>}
-        {section.kind === 'intro' && researchId && <a href={`#${researchId}`} className={styles.secondary}>연구 보기</a>}
+        {section.kind === 'intro' && projectId && <a href={`#${projectId}`} className={styles.primary}>경험 보기 <span aria-hidden="true">↗</span></a>}
       </div>}
     </>}</ScrollPanel>
   </section>;
@@ -104,7 +104,7 @@ export default function Portfolio({ sections, profile }) {
     });
     const wheel = event => {
       if (event.ctrlKey) return;
-      if (automatic.current) { event.preventDefault(); event.stopPropagation(); return; }
+      if (automatic.current || root.current?.querySelector('[data-replaying=true]')) { event.preventDefault(); event.stopPropagation(); return; }
       if (!event.deltaY) return;
       if (event.deltaY < 0 || navigationTarget.current !== null) interrupt();
       forward = event.deltaY > 0;
@@ -203,7 +203,7 @@ export default function Portfolio({ sections, profile }) {
   function changeActivity(item, keyboard = false) { setDetail(item); setDetailInstant(keyboard); }
   function moveDetail(direction, event) { setDetailInstant(event.detail === 0); setDetail(details[(detailIndex + direction + details.length) % details.length]); dialog.current.scrollTop = 0; }
   const firstId = sections[0]?.id || 'main';
-  return <div ref={root} className={styles.portfolio} style={{'--chapter-length':`${CHAPTER_DISTANCE*100/2}svh`}} data-enhanced={staged} data-staged={staged} data-native-scroll="true" data-ready={staged} data-paused={paused} data-cover={onCover} data-active-kind={sections[active]?.kind}>
+  return <div ref={root} className={styles.portfolio} style={{'--chapter-length':`${CHAPTER_DISTANCE*100/4}svh`}} data-enhanced={staged} data-staged={staged} data-native-scroll="true" data-ready={staged} data-paused={paused} data-cover={onCover} data-active-kind={sections[active]?.kind}>
     <a className={styles.skip} href={`#${firstId}`}>본문으로 건너뛰기</a>
     <header className={styles.header}>
       <a className={styles.brand} href="#preview" aria-label="포트폴리오 처음으로"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="11"/><circle cx="16" cy="16" r="6"/><path d="M16 1v7m0 16v7M1 16h7m16 0h7M11 21l10-10"/></svg><span>{profile.name || 'Portfolio'}</span></a>
@@ -212,13 +212,14 @@ export default function Portfolio({ sections, profile }) {
         <button className={styles.menuButton} onClick={event => { menuDialog.current.dataset.instant = String(event.detail === 0); setMenu(true); }} aria-label="전체 메뉴" aria-haspopup="dialog" aria-expanded={menu}>목차 <svg viewBox="0 0 28 20" aria-hidden="true"><path d="M2 5h24M2 15h16"/></svg></button>
       </div>
     </header>
+    {staged && <ScrollRail container={root} position={visualY} onScroll={syncScroll}/>}
     {staged && <SceneBackdrop profile={profile} ids={ids} state={state} paused={paused} reduced={reducedMotion}/>}
     <main id="main" className={styles.main}>
       <section id="preview" className={styles.preview} aria-labelledby="preview-name" data-preview data-chapter>
         <ScrollPanel index={0} state={state} staged={staged} reduced={reducedMotion} className={styles.previewStage}><ArchiveCover profile={profile} firstId={firstId}/></ScrollPanel>
       </section>
       <noscript><style>{'[data-section],[data-section] [data-panel]{height:auto!important;min-height:100svh;overflow:visible!important}[data-section] [data-panel]{position:relative!important}[data-kind=interests] [data-panel],[data-kind=projects] [data-panel]{padding:0!important}'}</style><nav className={styles.noScriptNav} aria-label="전체 섹션">{sections.map((section) => <a key={section.id} href={`#${section.id}`}>{section.title}</a>)}</nav></noscript>
-      {sections.map((section,index)=><Panel key={section.id} section={section} index={index+1} count={sections.length} state={state} staged={staged} reduced={reducedMotion} onDetail={openDetail} profile={profile} projectId={sections.find(item=>item.kind==='projects')?.id} researchId={contentSections.find(item=>item.kind==='publications')?.id}/>)}
+      {sections.map((section,index)=><Panel key={section.id} section={section} index={index+1} count={sections.length} state={state} staged={staged} reduced={reducedMotion} onDetail={openDetail} profile={profile} projectId={sections.find(item=>item.kind==='projects')?.id}/>)}
       {!sections.length && <p className={styles.empty}>새로운 이야기를 준비하고 있습니다.</p>}
     </main>
 
@@ -229,7 +230,7 @@ export default function Portfolio({ sections, profile }) {
         {chapterIndex < sections.length ? <a href={`#${onCover ? firstId : sections[active + 1].id}`} aria-label={`다음 섹션: ${onCover ? sections[0].title : sections[active + 1].title}`}>↓</a> : <button disabled aria-label="다음 섹션 없음">↓</button>}
       </div>
     </nav>
-    <footer className={styles.footer}><span>{profile.name || 'Portfolio'} / 계속 만들어가는 기록</span><div>{profile.email && <a href={`mailto:${profile.email}`}>이메일</a>}{profile.cv && <a href={assetUrl(profile.cv)}>CV 다운로드</a>}{profile.links.map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label}</a>)}</div><span>콘텐츠 초안</span></footer>
+    <footer className={styles.footer}><span>{profile.name || 'Portfolio'} / 계속 만들어가는 기록</span><div>{profile.email && <a href={`mailto:${profile.email}`}>이메일</a>}{profile.cv && <a href={assetUrl(profile.cv)}>CV 다운로드</a>}{profile.links.map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label}</a>)}</div><span>AI · DATA DEVELOPMENT</span></footer>
     <dialog ref={menuDialog} className={styles.menuDialog} onCancel={event=>{event.preventDefault();closeMenu(event);}} onClose={() => setMenu(false)} aria-labelledby="menu-title" onClick={(event) => { if (event.target === event.currentTarget) closeMenu(event); }}>
       <div className={styles.menuContent}><div className={styles.dialogTop}><h2 id="menu-title">목차</h2><button onClick={closeMenu} aria-label="메뉴 닫기">×</button></div>
         <nav aria-label="전체 섹션">{[{id:'preview',title:'프롤로그'},...sections].map((section, index) => <a key={section.id} href={`#${section.id}`} onClick={closeMenu} aria-current={chapterIndex === index ? 'location' : undefined} style={{ transitionDelay: `${Math.min(index, 5) * 30}ms` }}><span>{String(index).padStart(2,'0')}</span>{section.title}<span aria-hidden="true">↗</span></a>)}</nav>

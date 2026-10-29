@@ -7,7 +7,7 @@ export function collectImages(...sources) {
     for (const key of ['image', 'still', 'poster']) add(value[key]);
     add(typeof value.artwork === 'string' ? value.artwork : value.artwork?.src);
     add(value.artwork?.thumbnail);
-    Object.values(value).forEach(visit);
+    Object.entries(value).filter(([key]) => key !== 'detailSections').forEach(([, entry]) => visit(entry));
   };
   sources.forEach(visit);
   return [...images];
